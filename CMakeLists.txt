@@ -11,28 +11,35 @@ endif()
 project(taifuse)
 include("${VITASDK}/share/vita.cmake" REQUIRED)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wl,-q -Wall -O3 -nostdlib")
+#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wl,-q -Wall -O3 -nostdlib")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wl,-q -Wall -nostdlib")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti -fno-exceptions")
 
 add_executable(taifuse
   src/main.c
+  src/module.c
   # src/log.c
 )
 
+target_link_directories(taifuse BEFORE PRIVATE ${CMAKE_SOURCE_DIR}/libs)
+
 target_link_libraries(taifuse
-  # taihen_stub
   taihenForKernel_stub
-  # taihenModuleUtils_stub
-  # SceCpuForDriver_stub
-  # SceSysclibForDriver_stub
-  # SceSysmemForDriver_stub
-  # SceProcEventForDriver_stub
-  # SceThreadmgrForDriver_stub
-  # SceDebugForDriver_stub
-  # SceSysrootForKernel_stub
-  # SceProcessmgrForDriver_stub
+  taihenModuleUtils_stub
+  SceSysmemForDriver_stub
+  SceSysmemForKernel_stub
+  SceSysclibForDriver_stub
+  SceCpuForKernel_stub
+  SceCpuForDriver_stub
+  SceSysrootForKernel_stub
+  SceThreadmgrForDriver_stub
+  SceModulemgrForKernel_stub
+  SceModulemgrForDriver_stub
   SceIofilemgrForDriver_stub
-  SceSysclibForDriver_stub 
+  SceSblACMgrForDriver_stub
+  SceSblAIMgrForDriver_stub
+  SceDebugForDriver_stub
+  SceCtrlForDriver_stub
 )
 
 vita_create_self(taifuse.skprx taifuse CONFIG exports.yml UNSAFE)
