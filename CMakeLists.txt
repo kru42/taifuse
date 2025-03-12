@@ -17,11 +17,10 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti -fno-exceptions")
 
 add_executable(taifuse
   src/main.c
-  src/module.c
   # src/log.c
 )
 
-target_link_directories(taifuse BEFORE PRIVATE ${CMAKE_SOURCE_DIR}/libs)
+#target_link_directories(taifuse BEFORE PRIVATE ${CMAKE_SOURCE_DIR}/libs)
 
 target_link_libraries(taifuse
   taihenForKernel_stub
@@ -29,15 +28,11 @@ target_link_libraries(taifuse
   SceSysmemForDriver_stub
   SceSysmemForKernel_stub
   SceSysclibForDriver_stub
-  SceCpuForKernel_stub
-  SceCpuForDriver_stub
   SceSysrootForKernel_stub
   SceThreadmgrForDriver_stub
   SceModulemgrForKernel_stub
   SceModulemgrForDriver_stub
   SceIofilemgrForDriver_stub
-  SceSblACMgrForDriver_stub
-  SceSblAIMgrForDriver_stub
   SceDebugForDriver_stub
   SceCtrlForDriver_stub
 )
