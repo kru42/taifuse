@@ -11,13 +11,19 @@ endif()
 project(taifuse)
 include("${VITASDK}/share/vita.cmake" REQUIRED)
 
-#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wl,-q -Wall -O3 -nostdlib")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wl,-q -Wall -nostdlib")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wl,-q -Wall -O3 -nostdlib")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti -fno-exceptions")
 
+# file(GLOB TAIFUSE_SOURCES
+#   src/*.c
+# )
+
 add_executable(taifuse
+  #${TAIFUSE_SOURCES}
   src/main.c
+  src/utils.c
   src/cheats.c
+  src/arm_as.c
 )
 
 #target_link_directories(taifuse BEFORE PRIVATE ${CMAKE_SOURCE_DIR}/libs)

@@ -60,7 +60,7 @@ int load_cheats(const char* filename, cheat_group_t** cheat_groups, size_t* grou
 /**
  * Frees the allocated cheat groups and their cheat arrays.
  */
-void ksceKernelFree_cheats(cheat_group_t* cheat_groups, size_t group_count);
+void free_cheats(cheat_group_t* cheat_groups, size_t group_count);
 
 /**
  * (Optional) Assemble a textual patch code into binary patch data.
