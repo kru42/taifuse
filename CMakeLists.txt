@@ -17,7 +17,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti -fno-exceptions")
 
 add_executable(taifuse
   src/main.c
-  # src/log.c
+  src/cheats.c
 )
 
 #target_link_directories(taifuse BEFORE PRIVATE ${CMAKE_SOURCE_DIR}/libs)
@@ -59,6 +59,6 @@ vita_create_stubs(stubs taifuse ${CMAKE_CURRENT_SOURCE_DIR}/exports.yml KERNEL)
 set(PSVITAIP 192.168.1.58)
 
 add_custom_target(send
-  COMMAND curl --ftp-method nocwd -T taifuse.skprx ftp://${PSVITAIP}:1337/ux0:/tai/taifuse.skprx
+  COMMAND curl --ftp-method nocwd -T taifuse.skprx ftp://${PSVITAIP}:1337/ux0:/tai/taifuse.skprx && curl --ftp-method nocwd -T ../db/cheats.ini ftp://${PSVITAIP}:1337/ux0:/data/taifuse/cheats.ini
   DEPENDS taifuse.skprx
 )
