@@ -4,7 +4,7 @@
 #include "log.h"
 #include "cheats.h"
 #include "plugin.h"
-#include "gui.h"
+#include "menu.h"
 
 // taiHEN exports
 extern int module_get_by_name_nid(SceUID pid, const char* name, uint32_t nid, tai_module_info_t* info);
@@ -38,7 +38,7 @@ static int taifuse_thread(SceSize args, void* argp)
         if (ret < 0)
             ret = ksceCtrlPeekBufferPositive(1, &kctrl, 1);
         if (ret > 0)
-            gui_input_check(kctrl.buttons);
+            menu_handle_input(kctrl.buttons);
 
         ksceKernelDelayThread(100 * 1000);
     }
