@@ -24,20 +24,6 @@ int assemble_patch(const char* asm_code, uint8_t** patch_bytes, size_t* patch_si
 //---------------------------------------------------------------------
 
 // load_cheats: Reads a cheat file using ksceIo* functions and populates cheat_groups.
-// The file uses an INI-like format. Example:
-//   # Simple patch cheat
-//   [PCSA00092]
-//   enabled = 1
-//   address = 0x814F4478
-//   patch   = 0x1
-//   description = Toggle god mode
-//
-//   ; Assembly patch cheat
-//   [PCSE00261]
-//   enabled = 1
-//   address = 0x81091D44
-//   code    = mov r0, #1; ret
-//   description = Increase damage output
 int load_cheats(const char* filename, cheat_group_t** cheat_groups, size_t* group_count)
 {
     SceUID fd = ksceIoOpen(filename, SCE_O_RDONLY, 0);

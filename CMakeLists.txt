@@ -18,17 +18,22 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti -fno-exceptions")
 #   src/*.c
 # )
 
+add_subdirectory(kubridge)
+
 add_executable(taifuse
   #${TAIFUSE_SOURCES}
   src/main.c
   src/utils.c
   src/cheats.c
-  src/arm_as.c
+  #src/gui.c
+  src/plugin.c
+  #src/arm_as.c
 )
 
 #target_link_directories(taifuse BEFORE PRIVATE ${CMAKE_SOURCE_DIR}/libs)
 
 target_link_libraries(taifuse
+  kubridge_stub
   taihenForKernel_stub
   taihenModuleUtils_stub
   SceSysmemForDriver_stub
@@ -45,7 +50,7 @@ target_link_libraries(taifuse
 
 vita_create_self(taifuse.skprx taifuse CONFIG exports.yml UNSAFE)
 
-vita_create_stubs(stubs taifuse ${CMAKE_CURRENT_SOURCE_DIR}/exports.yml KERNEL)
+# vita_create_stubs(stubs taifuse ${CMAKE_CURRENT_SOURCE_DIR}/exports.yml KERNEL)
 
 # add_custom_target(taifuse_all
 #   ALL

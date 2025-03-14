@@ -3,6 +3,8 @@
 
 #include "log.h"
 #include "cheats.h"
+#include "plugin.h"
+#include "gui.h"
 
 // taiHEN exports
 extern int module_get_by_name_nid(SceUID pid, const char* name, uint32_t nid, tai_module_info_t* info);
@@ -15,7 +17,6 @@ typedef SceUID (*sceKernelGetProcessTitleId_t)(SceUID pid, char* titleid, int si
 typedef SceUID (*sceKernelUnloadProcessModulesForKernel_t)(SceUID pid);
 
 static tai_hook_ref_t game_load_hook_ref;
-static tai_hook_ref_t dr_hook_ref;
 
 static sceKernelGetProcessTitleId_t             sceKernelSysrootGetProcessTitleIdForKernel;
 static sceKernelUnloadProcessModulesForKernel_t sceKernelUnloadProcessModulesForKernel;
@@ -27,29 +28,35 @@ SceUID g_taifuse_pool;
 
 int sceKernelStartPreloadingModulesForKernel_hook(SceUID pid, void* args)
 {
-    char titleid[32];
+    char titleid[32] = {0};
     sceKernelSysrootGetProcessTitleIdForKernel(pid, titleid, sizeof(titleid));
 
-    // Check if the titleid is a game
-    if (strncmp(titleid, "PC", 2) == 0)
+    LOG("%s is running with pid %d", titleid, pid);
+
+    LOG("calling original sceKernelStartPreloadingModulesForKernel()...");
+    int result = TAI_CONTINUE(int, game_load_hook_ref, pid, args);
+    if (result < 0)
     {
-        LOG("%s is running with pid %d", titleid, pid);
-
-        // Reload cheat file
-        free_cheats(g_cheat_groups, g_cheat_group_count);
-        if (load_cheats("ux0:data/taifuse/cheats.ini", &g_cheat_groups, &g_cheat_group_count) < 0)
-        {
-            LOG("failed to load cheats, aborted");
-            return SCE_KERNEL_STOP_SUCCESS;
-        }
-
-        // Apply game cheats
-        apply_cheats(pid, titleid, g_cheat_groups, g_cheat_group_count);
-
-        // TODO: Apply plugins
+        LOG("original sceKernelStartPreloadingModulesForKernel() failed, aborted");
+        return result;
     }
 
-    return TAI_CONTINUE(int, game_load_hook_ref, pid, args);
+    // Reload the cheat file on every game load.
+    // Reset our static cheat group count.
+    g_cheat_group_count = 0;
+    if (load_cheats("ux0:data/taifuse/cheats.ini", &g_cheat_groups, &g_cheat_group_count) < 0)
+    {
+        LOG("Failed to load cheats for %s", titleid);
+    }
+    else
+    {
+        // This function will scan all groups for a matching titleid.
+        apply_cheats(pid, titleid, g_cheat_groups, g_cheat_group_count);
+    }
+
+    load_plugins_for_game(pid, titleid);
+
+    return result;
 }
 
 void _start() __attribute__((weak, alias("module_start")));
@@ -87,6 +94,9 @@ int  module_start(SceSize argc, const void* args)
     {
         LOG("failed to hook sceKernelStartPreloadingModulesForKernel: 0x%08x, aborted", uid);
     }
+
+    // SceUID thread_uid = ksceKernelCreateThread("taifuse_thread", taifuse_thread, 0x3C, 0x3000, 0, 0x10000, 0);
+    // ksceKernelStartThread(thread_uid, 0, NULL);
 
     return SCE_KERNEL_START_SUCCESS;
 }
