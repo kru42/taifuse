@@ -30,6 +30,8 @@ size_t         g_cheat_group_count;
 SceUID g_taifuse_pool;
 char   g_titleid[32];
 
+SceUID g_game_pid;
+
 static int taifuse_thread(SceSize args, void* argp)
 {
     while (1)
@@ -83,6 +85,7 @@ int sceKernelStartPreloadingModulesForKernel_hook(SceUID pid, void* args)
         return result;
     }
 
+    g_game_pid = pid;
     memcpy(g_titleid, titleid, MAX_TITLEID_LEN);
 
     // Reload the cheat file on every game load.

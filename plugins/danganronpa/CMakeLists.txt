@@ -30,7 +30,7 @@ target_link_directories(danganronpa_plugin BEFORE PRIVATE ${CMAKE_SOURCE_DIR}/..
 
 # Add kubridge to the target libraries
 target_link_libraries(danganronpa_plugin
-  #taifuse_stub
+  taifuse_stub
   taihen_stub
   taihenModuleUtils_stub
   k

@@ -4,8 +4,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include <kubridge.h>
-//#include <console.h>
+#include <taifuse.h>
 
 tai_hook_ref_t gxt_hook_ref;
 
@@ -26,12 +25,19 @@ int  module_start(SceSize argc, const void* args)
 {
     printf("======= module_start =======\n");
     printf("pls dont crash");
-    //kuConsolePrintf("hello hello uw//u");
 
     uint32_t func_addr = 0x810A9A96;
 
+    if (kuConsolePrintf == NULL)
+    {
+        printf("kuConsolePrintf is NULL!\n");
+        return SCE_KERNEL_START_SUCCESS;
+    }
+
+    kuConsolePrintf("hello hello uwu, hooking function at 0x%08x...", func_addr);
+
     tai_module_info_t pt_module_info;
-    int res = get_dr_module(&pt_module_info);
+    int               res = get_dr_module(&pt_module_info);
     if (res < 0)
     {
         printf("danganronpa_plugin: error getting module info via taihen!\n");

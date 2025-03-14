@@ -1,10 +1,19 @@
 #include "menu.h"
-#include "gui.h"
-#include "cheats.h"
-#include "log.h" // if needed for debugging
-#include "console.h"
+#include <taihen.h>
 #include <stdio.h>
 
+#include "gui.h"
+#include "cheats.h"
+#include "log.h"
+#include "console.h"
+
+extern int module_get_export_func(SceUID pid, const char* modname, uint32_t libnid, uint32_t funcnid, uintptr_t* func);
+
+// option: 0: flag 0x2, 1: flag 0x20, 2: flag 0x40
+typedef int (*sceKernelKillProcessForKernel_t)(SceUID pid, SceInt32 option);
+static sceKernelKillProcessForKernel_t sceKernelKillProcessForKernel;
+
+extern int            g_game_pid;
 extern char           g_titleid[32];
 extern rgba_t         g_color_text;
 extern cheat_group_t* g_cheat_groups;
@@ -60,8 +69,7 @@ void menu_handle_input(SceCtrlButtons buttons)
             g_selected_option++;
         }
 
-        // There are two options for now.
-        const int option_count = 2;
+        const int option_count = 3;
         if (g_selected_option < 0)
             g_selected_option = option_count - 1;
         else if (g_selected_option >= option_count)
@@ -80,6 +88,21 @@ void menu_handle_input(SceCtrlButtons buttons)
                 }
             }
             else if (g_selected_option == 1)
+            {
+                // Terminate the game process
+                if (sceKernelKillProcessForKernel == NULL)
+                {
+                    if (module_get_export_func(KERNEL_PID, "SceProcessmgr", TAI_ANY_LIBRARY, 0xF388F05C,
+                                               &sceKernelKillProcessForKernel) < 1)
+                    {
+                        LOG("Failed to find SceProcessmgr::sceKernelKillProcessForKernel, operation aborted");
+                        return;
+                    }
+                }
+
+                sceKernelKillProcessForKernel(g_game_pid, 0x2);
+            }
+            else if (g_selected_option == 2)
             {
                 // Exit the menu.
                 g_menu_active = false;
@@ -102,12 +125,12 @@ void menu_draw(void)
     g_color_text.rgba.r = 255;
     g_color_text.rgba.g = 255;
     g_color_text.rgba.b = 255;
-    gui_print(50, 30, "Cheats Menu");
+    gui_print(50, 30, "Taifuse Menu");
 
     char reload_option[64];
     snprintf(reload_option, sizeof(reload_option), "Reload cheats for %s", g_titleid);
 
-    const char* options[]    = {reload_option, "Exit"};
+    const char* options[]    = {reload_option, "Kill game process", "Exit"};
     const int   option_count = sizeof(options) / sizeof(options[0]);
 
     for (int i = 0; i < option_count; i++)
@@ -118,6 +141,9 @@ void menu_draw(void)
             g_color_text.rgba.r = 255;
             g_color_text.rgba.g = 0;
             g_color_text.rgba.b = 0;
+
+            // Add cursor indicator for selected option
+            gui_print(45, 60 + i * 30, ">");
         }
         else
         {

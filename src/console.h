@@ -23,7 +23,7 @@ bool console_is_active(void);
 void console_clear(void);
 
 // Logs a formatted message to the console.
-__attribute__((visibility("default"))) void kuConsolePrintf(const char* format, ...);
+void console_log(const char* format, ...);
 
 void console_handle_input(SceCtrlButtons buttons);
 

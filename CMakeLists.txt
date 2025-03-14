@@ -14,23 +14,16 @@ include("${VITASDK}/share/vita.cmake" REQUIRED)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wl,-q -Wall -O3 -nostdlib")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti -fno-exceptions")
 
-# file(GLOB TAIFUSE_SOURCES
-#   src/*.c
-# )
-
 add_executable(taifuse
-  #${TAIFUSE_SOURCES}
   src/main.c
+  src/taifuse.c
   src/utils.c
   src/cheats.c
   src/gui.c
   src/plugin.c
   src/menu.c
   src/console.c
-  #src/arm_as.c
 )
-
-#target_link_directories(taifuse BEFORE PRIVATE ${CMAKE_SOURCE_DIR}/libs)
 
 target_link_libraries(taifuse
   taihenForKernel_stub
@@ -49,22 +42,17 @@ target_link_libraries(taifuse
 
 vita_create_self(taifuse.skprx taifuse CONFIG exports.yml UNSAFE)
 
+# Create stubs for userland modules to use
 vita_create_stubs(taifuse_stubs taifuse ${CMAKE_CURRENT_SOURCE_DIR}/exports.yml KERNEL)
 
-# add_custom_target(taifuse_all
-#   ALL
-#   DEPENDS libtaifuse_stub.a
-#   DEPENDS libtaifuse_stub_weak.a
-# )
-
-# install(DIRECTORY ${CMAKE_BINARY_DIR}/stubs/
-#   DESTINATION lib
-#   FILES_MATCHING PATTERN "*.a"
-# )
-
-# install(FILES taifuse.h
-#   DESTINATION include
-# )
+# Install stubs to the build directory so other projects can find them
+add_custom_target(install_stubs
+  ALL
+  COMMAND mkdir -p ${CMAKE_BINARY_DIR}/stubs
+  COMMAND cp libtaifuse_stub.a ${CMAKE_BINARY_DIR}/stubs/
+  COMMAND cp libtaifuse_stub_weak.a ${CMAKE_BINARY_DIR}/stubs/
+  DEPENDS taifuse.skprx
+)
 
 set(PSVITAIP 192.168.1.58)
 

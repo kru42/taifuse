@@ -61,7 +61,7 @@ void console_handle_input(SceCtrlButtons buttons)
     }
 }
 
-void kuConsolePrintf(const char* format, ...)
+void console_log(const char* format, ...)
 {
     char    buffer[CONSOLE_MAX_LINE_LENGTH];
     va_list args;
@@ -86,9 +86,9 @@ void kuConsolePrintf(const char* format, ...)
 
 void console_draw(void)
 {
-    if (!g_console_active)
+    if (!console_is_active())
         return;
-    
+
     gui_clear();
 
     // Optionally, set a distinct color for the console text.
