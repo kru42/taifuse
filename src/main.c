@@ -5,6 +5,8 @@
 #include "cheats.h"
 #include "plugin.h"
 #include "menu.h"
+#include "console.h"
+#include "gui.h"
 
 // taiHEN exports
 extern int module_get_by_name_nid(SceUID pid, const char* name, uint32_t nid, tai_module_info_t* info);
@@ -38,7 +40,11 @@ static int taifuse_thread(SceSize args, void* argp)
         if (ret < 0)
             ret = ksceCtrlPeekBufferPositive(1, &kctrl, 1);
         if (ret > 0)
+        {
+            // TODO: Prevent having both overlays on screen
             menu_handle_input(kctrl.buttons);
+            console_handle_input(kctrl.buttons);
+        }
 
         ksceKernelDelayThread(100 * 1000);
     }
@@ -135,7 +141,13 @@ int  module_start(SceSize argc, const void* args)
         return SCE_KERNEL_START_SUCCESS;
     }
 
+    // Init the display framebuffer first
     gui_init();
+
+    // Init menu and console
+    menu_init();
+    console_init();
+
     uid = taiHookFunctionExportForKernel(KERNEL_PID, &g_display_fb_hook_ref, "SceDisplay", 0x9FED47AC, 0x16466675,
                                          ksceDisplaySetFrameBufInternal_patched);
     if (uid < 0)

@@ -5,6 +5,7 @@
 #include "log.h"
 #include "cheats.h"
 #include "menu.h"
+#include "console.h"
 #include "fonts/gui_font_ter-u24b.h"
 
 // Global variables for our internal GUI buffer and display framebuffer.
@@ -144,10 +145,17 @@ void gui_printf(int x, int y, const char* format, ...)
 //--------------------------------------------------------------------
 void gui_cpy(void)
 {
-    if (!menu_is_active())
+    if (!menu_is_active() && !console_is_active())
         return;
 
-    menu_draw();
+    if (menu_is_active() && !console_is_active())
+    {
+        menu_draw();
+    }
+    else if (console_is_active())
+    {
+        console_draw();
+    }
 
     // Calculate scaled dimensions and offsets.
     int scaled_width  = (int)(GUI_WIDTH * g_gui_fb_w_ratio);

@@ -4,6 +4,7 @@
 #include <taihen.h>
 #include <string.h>
 #include <stdio.h>
+#include "console.h"
 
 int load_plugins_for_game(SceUID pid, const char* titleid)
 {

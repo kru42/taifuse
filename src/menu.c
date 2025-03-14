@@ -2,6 +2,7 @@
 #include "gui.h"
 #include "cheats.h"
 #include "log.h" // if needed for debugging
+#include "console.h"
 #include <stdio.h>
 
 extern char           g_titleid[32];
@@ -66,8 +67,8 @@ void menu_handle_input(SceCtrlButtons buttons)
         else if (g_selected_option >= option_count)
             g_selected_option = 0;
 
-        // Process confirmation (e.g., SCE_CTRL_CROSS).
-        if (buttons & SCE_CTRL_CROSS)
+        // Process confirmation
+        if (buttons & SCE_CTRL_CIRCLE) // TODO: Use the correct confirm button
         {
             if (g_selected_option == 0)
             {

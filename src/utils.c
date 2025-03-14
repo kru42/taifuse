@@ -1,5 +1,6 @@
 #include "utils.h"
 #include <vitasdkkern.h>
+#include "console.h"
 
 // Global heap id
 extern SceUID g_taifuse_pool;

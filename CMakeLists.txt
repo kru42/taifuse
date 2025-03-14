@@ -28,6 +28,7 @@ add_executable(taifuse
   src/gui.c
   src/plugin.c
   src/menu.c
+  src/console.c
   #src/arm_as.c
 )
 
