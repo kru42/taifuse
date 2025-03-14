@@ -4,8 +4,8 @@
 
 #include "gui.h"
 #include "cheats.h"
-#include "log.h"
 #include "console.h"
+#include "log.h"
 
 extern int module_get_export_func(SceUID pid, const char* modname, uint32_t libnid, uint32_t funcnid, uintptr_t* func);
 
@@ -54,7 +54,7 @@ void menu_handle_input(SceCtrlButtons buttons)
         combo_pressed = false;
     }
 
-    // If the menu is active, handle navigation and actions.
+    // If the menu is active and we're in a game, show the cheat menu
     if (g_menu_active)
     {
         // Simple navigation: adjust selected option based on input.
@@ -127,33 +127,41 @@ void menu_draw(void)
     g_color_text.rgba.b = 255;
     gui_print(50, 30, "Taifuse Menu");
 
-    char reload_option[64];
-    snprintf(reload_option, sizeof(reload_option), "Reload cheats for %s", g_titleid);
-
-    const char* options[]    = {reload_option, "Kill game process", "Exit"};
-    const int   option_count = sizeof(options) / sizeof(options[0]);
-
-    for (int i = 0; i < option_count; i++)
+    if (g_game_pid != 0)
     {
-        if (i == g_selected_option)
-        {
-            // Red highlight for selected option.
-            g_color_text.rgba.r = 255;
-            g_color_text.rgba.g = 0;
-            g_color_text.rgba.b = 0;
+        char reload_option[64];
+        snprintf(reload_option, sizeof(reload_option), "Reload cheats for %s", g_titleid);
 
-            // Add cursor indicator for selected option
-            gui_print(45, 60 + i * 30, ">");
-        }
-        else
-        {
-            // White for non-selected options.
-            g_color_text.rgba.r = 255;
-            g_color_text.rgba.g = 255;
-            g_color_text.rgba.b = 255;
-        }
+        const char* options[]    = {reload_option, "Kill game process", "Exit"};
+        const int   option_count = sizeof(options) / sizeof(options[0]);
 
-        gui_print(60, 60 + i * 30, options[i]);
+        for (int i = 0; i < option_count; i++)
+        {
+            if (i == g_selected_option)
+            {
+                // Red highlight for selected option.
+                g_color_text.rgba.r = 255;
+                g_color_text.rgba.g = 0;
+                g_color_text.rgba.b = 0;
+
+                // Add cursor indicator for selected option
+                gui_print(45, 60 + i * 30, ">");
+            }
+            else
+            {
+                // White for non-selected options.
+                g_color_text.rgba.r = 255;
+                g_color_text.rgba.g = 255;
+                g_color_text.rgba.b = 255;
+            }
+
+            gui_print(60, 60 + i * 30, options[i]);
+        }
+    }
+    else
+    {
+        // We're not in a game
+        gui_print(60, 15, "Waiting for a game to start...");
     }
 
     // Restore original color in case it's used elsewhere.

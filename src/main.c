@@ -7,6 +7,17 @@
 #include "menu.h"
 #include "console.h"
 #include "gui.h"
+#include "taifuse.h"
+
+// Utility macro
+#define DECL_FUNC_HOOK_PATCH_CTRL(index, name)                                         \
+    static int name##_patched(int port, SceCtrlData* pad_data, int count)              \
+    {                                                                                  \
+        int ret = TAI_CONTINUE(int, g_ctrl_hook_refs[(index)], port, pad_data, count); \
+        if (ret > 0)                                                                   \
+            taifuse_input_check(pad_data, count);                                      \
+        return ret;                                                                    \
+    }
 
 // taiHEN exports
 extern int module_get_by_name_nid(SceUID pid, const char* name, uint32_t nid, tai_module_info_t* info);
@@ -19,10 +30,11 @@ typedef SceUID (*sceKernelGetProcessTitleId_t)(SceUID pid, char* titleid, int si
 typedef SceUID (*sceKernelUnloadProcessModulesForKernel_t)(SceUID pid);
 
 static tai_hook_ref_t game_load_hook_ref;
+static tai_hook_ref_t game_unload_hook_ref;
 static tai_hook_ref_t g_display_fb_hook_ref;
+tai_hook_ref_t        g_ctrl_hook_refs[8];
 
-static sceKernelGetProcessTitleId_t             sceKernelSysrootGetProcessTitleIdForKernel;
-static sceKernelUnloadProcessModulesForKernel_t sceKernelUnloadProcessModulesForKernel;
+static sceKernelGetProcessTitleId_t sceKernelSysrootGetProcessTitleIdForKernel;
 
 cheat_group_t* g_cheat_groups;
 size_t         g_cheat_group_count;
@@ -53,6 +65,26 @@ static int taifuse_thread(SceSize args, void* argp)
 
     return 0;
 }
+
+static void taifuse_input_check(SceCtrlData* pad_data, int count)
+{
+    if (menu_is_active() || console_is_active())
+    {
+        SceCtrlData kctrl;
+        kctrl.buttons = 0;
+        for (int i = 0; i < count; i++)
+            ksceKernelMemcpyKernelToUser((uintptr_t)&pad_data[i].buttons, &kctrl.buttons, sizeof(uint32_t));
+    }
+}
+
+DECL_FUNC_HOOK_PATCH_CTRL(0, sceCtrlPeekBufferNegative)
+DECL_FUNC_HOOK_PATCH_CTRL(1, sceCtrlPeekBufferNegative2)
+DECL_FUNC_HOOK_PATCH_CTRL(2, sceCtrlPeekBufferPositive)
+DECL_FUNC_HOOK_PATCH_CTRL(3, sceCtrlPeekBufferPositive2)
+DECL_FUNC_HOOK_PATCH_CTRL(4, sceCtrlReadBufferNegative)
+DECL_FUNC_HOOK_PATCH_CTRL(5, sceCtrlReadBufferNegative2)
+DECL_FUNC_HOOK_PATCH_CTRL(6, sceCtrlReadBufferPositive)
+DECL_FUNC_HOOK_PATCH_CTRL(7, sceCtrlReadBufferPositive2)
 
 int ksceDisplaySetFrameBufInternal_patched(int head, int index, const SceDisplayFrameBuf* pParam, int sync)
 {
@@ -106,6 +138,27 @@ int sceKernelStartPreloadingModulesForKernel_hook(SceUID pid, void* args)
     return result;
 }
 
+int sceKernelUnloadProcessModulesForKernel_hook(SceUID pid)
+{
+    // Set game pid as zero, to indicate that we're not in a game anymore
+    g_game_pid = 0;
+
+    return TAI_CONTINUE(int, game_unload_hook_ref, pid);
+}
+
+void cleanup()
+{
+    // Uninstall hooks
+    if (game_load_hook_ref)
+        taiHookReleaseForKernel(KERNEL_PID, game_load_hook_ref);
+
+    if (g_display_fb_hook_ref)
+        taiHookReleaseForKernel(KERNEL_PID, g_display_fb_hook_ref);
+
+    if (game_unload_hook_ref)
+        taiHookReleaseForKernel(KERNEL_PID, game_unload_hook_ref);
+}
+
 void _start() __attribute__((weak, alias("module_start")));
 int  module_start(SceSize argc, const void* args)
 {
@@ -130,17 +183,23 @@ int  module_start(SceSize argc, const void* args)
         return SCE_KERNEL_STOP_SUCCESS;
     }
 
-    SceUID uid = taiHookFunctionExportForKernel(
-        KERNEL_PID, &game_load_hook_ref, "SceKernelModulemgr", 0x92C9FFC2, 0x998C7AE9,
-        sceKernelStartPreloadingModulesForKernel_hook); // SceModuleMgrForKernel ->
-                                                        // sceKernelStartPreloadingModulesForKernel
-
-    // TODO: hook unload (reverse vitacheat lol to figure out what function), and uninstall
-    // game hooks etc..
-    // also obviously change game state (is running/not running/current titleid)
-    if (uid < 0)
+    // Hook app/game modules preloading function
+    SceUID res =
+        taiHookFunctionExportForKernel(KERNEL_PID, &game_load_hook_ref, "SceKernelModulemgr", 0x92C9FFC2, 0x998C7AE9,
+                                       sceKernelStartPreloadingModulesForKernel_hook); // SceModuleMgrForKernel ->
+    if (res < 0)
     {
-        LOG("failed to hook sceKernelStartPreloadingModulesForKernel: 0x%08x, aborted", uid);
+        LOG("failed to hook sceKernelStartPreloadingModulesForKernel: 0x%08x, aborted", res);
+        return SCE_KERNEL_START_SUCCESS;
+    }
+
+    // Hook  app/game modules unloading function
+    res = taiHookFunctionImportForKernel(KERNEL_PID, &game_unload_hook_ref, "SceProcessmgr", 0x92c9ffc2, 0xe71530d7,
+                                         &sceKernelUnloadProcessModulesForKernel_hook);
+    if (res < 0)
+    {
+        LOG("failed to hook sceProcessmgrUnloadProcessModulesForKernel: 0x%08x, aborted", res);
+        cleanup();
         return SCE_KERNEL_START_SUCCESS;
     }
 
@@ -151,27 +210,50 @@ int  module_start(SceSize argc, const void* args)
     menu_init();
     console_init();
 
-    uid = taiHookFunctionExportForKernel(KERNEL_PID, &g_display_fb_hook_ref, "SceDisplay", 0x9FED47AC, 0x16466675,
+    res = taiHookFunctionExportForKernel(KERNEL_PID, &g_display_fb_hook_ref, "SceDisplay", 0x9FED47AC, 0x16466675,
                                          ksceDisplaySetFrameBufInternal_patched);
-    if (uid < 0)
+    if (res < 0)
     {
-        LOG("failed to hook sceDisplaySetFrameBuf: 0x%08x, aborted", uid);
-        taiHookReleaseForKernel(KERNEL_PID, game_load_hook_ref);
+        LOG("failed to hook sceDisplaySetFrameBuf: 0x%08x, aborted", res);
+        cleanup();
         return SCE_KERNEL_START_SUCCESS;
     }
+
+    ksceDebugPrintf("import 1");
+    taiHookFunctionExportForKernel(KERNEL_PID, &g_ctrl_hook_refs[0], "SceCtrl", 0xD197E3C7, 0x104ED1A7,
+                                   sceCtrlPeekBufferNegative_patched);
+    ksceDebugPrintf("import 2");
+    taiHookFunctionExportForKernel(KERNEL_PID, &g_ctrl_hook_refs[1], "SceCtrl", 0xD197E3C7, 0x81A89660,
+                                   sceCtrlPeekBufferNegative2_patched);
+    ksceDebugPrintf("import 3");
+    taiHookFunctionExportForKernel(KERNEL_PID, &g_ctrl_hook_refs[2], "SceCtrl", 0xD197E3C7, 0xA9C3CED6,
+                                   sceCtrlPeekBufferPositive_patched);
+    ksceDebugPrintf("import 4");
+    taiHookFunctionExportForKernel(KERNEL_PID, &g_ctrl_hook_refs[3], "SceCtrl", 0xD197E3C7, 0x15F81E8C,
+                                   sceCtrlPeekBufferPositive2_patched);
+    ksceDebugPrintf("import 5");
+    taiHookFunctionExportForKernel(KERNEL_PID, &g_ctrl_hook_refs[4], "SceCtrl", 0xD197E3C7, 0x15F96FB0,
+                                   sceCtrlReadBufferNegative_patched);
+    ksceDebugPrintf("import 6");
+    taiHookFunctionExportForKernel(KERNEL_PID, &g_ctrl_hook_refs[5], "SceCtrl", 0xD197E3C7, 0x27A0C5FB,
+                                   sceCtrlReadBufferNegative2_patched);
+
+    taiHookFunctionExportForKernel(KERNEL_PID, &g_ctrl_hook_refs[6], "SceCtrl", 0xD197E3C7, 0x67E7AB83,
+                                   sceCtrlReadBufferPositive_patched);
+    taiHookFunctionExportForKernel(KERNEL_PID, &g_ctrl_hook_refs[7], "SceCtrl", 0xD197E3C7, 0xC4226A3E,
+                                   sceCtrlReadBufferPositive2_patched);
 
     // Create main thread
     SceUID thread_uid = ksceKernelCreateThread("taifuse_thread", taifuse_thread, 0x3C, 0x3000, 0, 0x10000, 0);
     ksceKernelStartThread(thread_uid, 0, NULL);
 
-    LOG("taifuse loaded");
+    LOG("taifuse loaded, hooks installed");
 
     return SCE_KERNEL_START_SUCCESS;
 }
 
 int module_stop(SceSize argc, const void* args)
 {
-    taiHookReleaseForKernel(KERNEL_PID, game_load_hook_ref);
-    taiHookReleaseForKernel(KERNEL_PID, g_display_fb_hook_ref);
+    cleanup();
     return SCE_KERNEL_STOP_SUCCESS;
 }
