@@ -39,7 +39,7 @@ static int taifuse_thread(SceSize args, void* argp)
         if (ret > 0)
             gui_input_check(kctrl.buttons);
 
-        ksceKernelDelayThread(50 * 1000);
+        ksceKernelDelayThread(100 * 1000);
     }
 
     return 0;

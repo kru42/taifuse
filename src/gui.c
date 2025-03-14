@@ -29,15 +29,19 @@ static rgba_t g_color_text = {.rgba = {255, 255, 255, 255}};
 static rgba_t g_color_bg   = {.rgba = {0, 0, 0, 255}};
 
 //--------------------------------------------------------------------
-// Input handling: Toggle menu with RIGHT + LTRIGGER
+// Input handling: Toggle menu with UP + LTRIGGER + RTRIGGER
 //--------------------------------------------------------------------
 static bool     g_menu_active  = false;
-static uint32_t g_prev_buttons = 0;
 
 void gui_input_check(SceCtrlButtons buttons)
 {
-    if ((buttons & SCE_CTRL_LTRIGGER) && (buttons & SCE_CTRL_RTRIGGER) && (buttons & SCE_CTRL_UP))
+    static bool combo_pressed = false;
+    bool        is_pressed = (buttons & SCE_CTRL_LTRIGGER) && (buttons & SCE_CTRL_RTRIGGER) && (buttons & SCE_CTRL_UP);
+    if (is_pressed && !combo_pressed)
+    {
         g_menu_active = !g_menu_active;
+    }
+    combo_pressed = is_pressed;
 }
 
 //--------------------------------------------------------------------
@@ -157,7 +161,7 @@ void gui_cpy(void)
     if (!g_menu_active)
         return;
 
-    gui_print(10, 10, "MENU ACTIVE");
+    gui_print(10, 10, "taifuse menu");
     // Calculate scaled dimensions and offsets.
     int scaled_width  = (int)(GUI_WIDTH * g_gui_fb_w_ratio);
     int scaled_height = (int)(GUI_HEIGHT * g_gui_fb_h_ratio);

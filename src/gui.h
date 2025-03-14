@@ -5,8 +5,8 @@
 #include <stdint.h>
 
 // GUI dimensions (fixed internal resolution)
-#define GUI_WIDTH  308
-#define GUI_HEIGHT 344
+#define GUI_WIDTH  672
+#define GUI_HEIGHT 380
 
 // Font dimensions (using your provided font)
 #define GUI_FONT_W 12
