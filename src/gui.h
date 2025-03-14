@@ -7,8 +7,8 @@
 extern char g_titleid[32];
 
 // GUI dimensions (fixed internal resolution)
-#define GUI_WIDTH  672
-#define GUI_HEIGHT 380
+#define GUI_WIDTH  832
+#define GUI_HEIGHT 470
 
 // Font dimensions (using your provided font)
 #define GUI_FONT_W 12

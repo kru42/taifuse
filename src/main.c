@@ -219,25 +219,18 @@ int  module_start(SceSize argc, const void* args)
         return SCE_KERNEL_START_SUCCESS;
     }
 
-    ksceDebugPrintf("import 1");
     taiHookFunctionExportForKernel(KERNEL_PID, &g_ctrl_hook_refs[0], "SceCtrl", 0xD197E3C7, 0x104ED1A7,
                                    sceCtrlPeekBufferNegative_patched);
-    ksceDebugPrintf("import 2");
     taiHookFunctionExportForKernel(KERNEL_PID, &g_ctrl_hook_refs[1], "SceCtrl", 0xD197E3C7, 0x81A89660,
                                    sceCtrlPeekBufferNegative2_patched);
-    ksceDebugPrintf("import 3");
     taiHookFunctionExportForKernel(KERNEL_PID, &g_ctrl_hook_refs[2], "SceCtrl", 0xD197E3C7, 0xA9C3CED6,
                                    sceCtrlPeekBufferPositive_patched);
-    ksceDebugPrintf("import 4");
     taiHookFunctionExportForKernel(KERNEL_PID, &g_ctrl_hook_refs[3], "SceCtrl", 0xD197E3C7, 0x15F81E8C,
                                    sceCtrlPeekBufferPositive2_patched);
-    ksceDebugPrintf("import 5");
     taiHookFunctionExportForKernel(KERNEL_PID, &g_ctrl_hook_refs[4], "SceCtrl", 0xD197E3C7, 0x15F96FB0,
                                    sceCtrlReadBufferNegative_patched);
-    ksceDebugPrintf("import 6");
     taiHookFunctionExportForKernel(KERNEL_PID, &g_ctrl_hook_refs[5], "SceCtrl", 0xD197E3C7, 0x27A0C5FB,
                                    sceCtrlReadBufferNegative2_patched);
-
     taiHookFunctionExportForKernel(KERNEL_PID, &g_ctrl_hook_refs[6], "SceCtrl", 0xD197E3C7, 0x67E7AB83,
                                    sceCtrlReadBufferPositive_patched);
     taiHookFunctionExportForKernel(KERNEL_PID, &g_ctrl_hook_refs[7], "SceCtrl", 0xD197E3C7, 0xC4226A3E,

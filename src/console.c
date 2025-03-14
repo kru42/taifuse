@@ -12,8 +12,8 @@ static int  g_console_line_count = 0;
 extern rgba_t g_color_text;
 
 // Starting position on screen for the console.
-#define CONSOLE_START_X 10
-#define CONSOLE_START_Y 100
+#define CONSOLE_START_X 5
+#define CONSOLE_START_Y 15
 // Vertical spacing between console lines.
 #define CONSOLE_LINE_SPACING 26
 
@@ -100,7 +100,7 @@ void console_draw(void)
     g_color_text.rgba.b = 180;
 
     // Draw a header for clarity.
-    // gui_print(CONSOLE_START_X, CONSOLE_START_Y - CONSOLE_LINE_SPACING, "Console:");
+    gui_print(CONSOLE_START_X, CONSOLE_START_Y, "Console:");
 
     // Draw each logged line.
     for (int i = 0; i < g_console_line_count; i++)

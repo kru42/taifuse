@@ -161,7 +161,7 @@ void menu_draw(void)
     else
     {
         // We're not in a game
-        gui_print(60, 15, "Waiting for a game to start...");
+        gui_print(60, 60, "Waiting for a game to start...");
     }
 
     // Restore original color in case it's used elsewhere.
