@@ -17,6 +17,7 @@ typedef SceUID (*sceKernelGetProcessTitleId_t)(SceUID pid, char* titleid, int si
 typedef SceUID (*sceKernelUnloadProcessModulesForKernel_t)(SceUID pid);
 
 static tai_hook_ref_t game_load_hook_ref;
+static tai_hook_ref_t g_display_fb_hook_ref;
 
 static sceKernelGetProcessTitleId_t             sceKernelSysrootGetProcessTitleIdForKernel;
 static sceKernelUnloadProcessModulesForKernel_t sceKernelUnloadProcessModulesForKernel;
@@ -25,6 +26,37 @@ static cheat_group_t* g_cheat_groups;
 static size_t         g_cheat_group_count;
 
 SceUID g_taifuse_pool;
+
+static int taifuse_thread(SceSize args, void* argp)
+{
+    while (1)
+    {
+        // Check buttons
+        SceCtrlData kctrl;
+        int         ret = ksceCtrlPeekBufferPositive(0, &kctrl, 1);
+        if (ret < 0)
+            ret = ksceCtrlPeekBufferPositive(1, &kctrl, 1);
+        if (ret > 0)
+            gui_input_check(kctrl.buttons);
+
+        ksceKernelDelayThread(50 * 1000);
+    }
+
+    return 0;
+}
+
+int ksceDisplaySetFrameBufInternal_patched(int head, int index, const SceDisplayFrameBuf* pParam, int sync)
+{
+    if (head == 0 || pParam == NULL)
+    {
+        return TAI_CONTINUE(int, g_display_fb_hook_ref, head, index, pParam, sync);
+    }
+
+    gui_set_framebuf(pParam);
+
+    gui_cpy();
+    return TAI_CONTINUE(int, g_display_fb_hook_ref, head, index, pParam, sync);
+}
 
 int sceKernelStartPreloadingModulesForKernel_hook(SceUID pid, void* args)
 {
@@ -93,10 +125,24 @@ int  module_start(SceSize argc, const void* args)
     if (uid < 0)
     {
         LOG("failed to hook sceKernelStartPreloadingModulesForKernel: 0x%08x, aborted", uid);
+        return SCE_KERNEL_START_SUCCESS;
     }
 
-    // SceUID thread_uid = ksceKernelCreateThread("taifuse_thread", taifuse_thread, 0x3C, 0x3000, 0, 0x10000, 0);
-    // ksceKernelStartThread(thread_uid, 0, NULL);
+    gui_init();
+    uid = taiHookFunctionExportForKernel(KERNEL_PID, &g_display_fb_hook_ref, "SceDisplay", 0x9FED47AC, 0x16466675,
+                                         ksceDisplaySetFrameBufInternal_patched);
+    if (uid < 0)
+    {
+        LOG("failed to hook sceDisplaySetFrameBuf: 0x%08x, aborted", uid);
+        taiHookReleaseForKernel(KERNEL_PID, game_load_hook_ref);
+        return SCE_KERNEL_START_SUCCESS;
+    }
+
+    // Create main thread
+    SceUID thread_uid = ksceKernelCreateThread("taifuse_thread", taifuse_thread, 0x3C, 0x3000, 0, 0x10000, 0);
+    ksceKernelStartThread(thread_uid, 0, NULL);
+
+    LOG("taifuse loaded");
 
     return SCE_KERNEL_START_SUCCESS;
 }
@@ -104,5 +150,6 @@ int  module_start(SceSize argc, const void* args)
 int module_stop(SceSize argc, const void* args)
 {
     taiHookReleaseForKernel(KERNEL_PID, game_load_hook_ref);
+    taiHookReleaseForKernel(KERNEL_PID, g_display_fb_hook_ref);
     return SCE_KERNEL_STOP_SUCCESS;
 }

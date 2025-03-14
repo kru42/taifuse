@@ -1,39 +1,38 @@
-#ifndef GUI_H
-#define GUI_H
+#ifndef _GUI_H_
+#define _GUI_H_
 
 #include <vitasdkkern.h>
 #include <stdint.h>
-#include <stdbool.h>
 
-#define GUI_WIDTH  960
-#define GUI_HEIGHT 544
+// GUI dimensions (fixed internal resolution)
+#define GUI_WIDTH  308
+#define GUI_HEIGHT 344
 
-#define FONT_WIDTH         9
-#define FONT_HEIGHT        18
-#define FONT_BYTES_PER_ROW (((FONT_WIDTH - 1) / 8) + 1)
+// Font dimensions (using your provided font)
+#define GUI_FONT_W 12
+#define GUI_FONT_H 24
 
-typedef struct
+// RGBA color structure
+typedef union
 {
-    uint8_t r, g, b, a;
+    struct
+    {
+        uint8_t r;
+        uint8_t g;
+        uint8_t b;
+        uint8_t a;
+    } rgba;
+    uint32_t uint32;
 } rgba_t;
 
-// External framebuffer (must be set by display init code)
-extern SceDisplayFrameBuf g_gui_fb;
-
-extern bool g_menu_visible;
-
-// GUI initialization and deinitialization
+// Rendering API (rendering only; no overclocking, profiling, etc.)
 int  gui_init(void);
 void gui_deinit(void);
-
-// GUI rendering functions
+void gui_set_framebuf(const SceDisplayFrameBuf* pParam);
+void gui_input_check(SceCtrlButtons buttons);
 void gui_clear(void);
-void gui_draw_menu_background(void);
-void gui_draw_char(char c, int x, int y, rgba_t color);
-void gui_print(const char* str, int x, int y, rgba_t color);
-void gui_copy(void);
+void gui_print(int x, int y, const char* str);
+void gui_printf(int x, int y, const char* format, ...);
+void gui_cpy(void);
 
-// Input handling
-void gui_input_check(uint32_t buttons);
-
-#endif // GUI_H
+#endif

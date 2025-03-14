@@ -1,45 +1,53 @@
+#include "gui.h"
 #include <vitasdkkern.h>
-#include <taihen.h>
 #include <stdbool.h>
-#include <stdint.h>
-#include "gui_font_ter-u18b.h" // Your actual font file
 
-#define GUI_WIDTH  960
-#define GUI_HEIGHT 544
+#include "gui_font_ter-u24b.h"
+#include "log.h"
 
-// Terminus U18 Bold parameters (as used in your original code for 720x408)
-// Adjust these if you change resolution.
-#define FONT_WIDTH  9
-#define FONT_HEIGHT 18
-// Each row uses this many bytes (for FONT_WIDTH = 9, that's 2 bytes per row)
-#define FONT_BYTES_PER_ROW (((FONT_WIDTH - 1) / 8) + 1)
+// Global variables for our internal GUI buffer and display framebuffer.
+static SceDisplayFrameBuf g_gui_fb = {
+    .width  = 960,
+    .height = 544,
+    .pitch  = 960,
+    .base   = NULL,
+};
+static float g_gui_fb_w_ratio = 1.0f;
+static float g_gui_fb_h_ratio = 1.0f;
 
-typedef struct
-{
-    uint8_t r, g, b, a;
-} rgba_t;
-
-// Global GUI buffer and its memblock ID.
 static rgba_t* g_gui_buffer;
 static SceUID  g_gui_buffer_uid = -1;
 
-// Display frame buffer (assumed to be set up by caller)
-static SceDisplayFrameBuf g_gui_fb = {
-    .base        = NULL, // Should be set by display init code
-    .width       = GUI_WIDTH,
-    .height      = GUI_HEIGHT,
-    .pitch       = GUI_WIDTH,
-    .pixelformat = SCE_DISPLAY_PIXELFORMAT_A8B8G8R8,
-};
+// Font parameters (using your supplied 12x24 font)
+static const unsigned char* g_gui_font        = FONT_TER_U24B;
+static unsigned char        g_gui_font_width  = GUI_FONT_W;
+static unsigned char        g_gui_font_height = GUI_FONT_H;
+static float                g_gui_font_scale  = 1.0f;
 
-// Menu visibility flag.
-bool g_menu_visible = false;
+// Colors for rendering
+static rgba_t g_color_text = {.rgba = {255, 255, 255, 255}};
+static rgba_t g_color_bg   = {.rgba = {0, 0, 0, 255}};
 
-// Allocate a kernel buffer for GUI drawing.
+//--------------------------------------------------------------------
+// Input handling: Toggle menu with RIGHT + LTRIGGER
+//--------------------------------------------------------------------
+static bool     g_menu_active  = false;
+static uint32_t g_prev_buttons = 0;
+
+void gui_input_check(SceCtrlButtons buttons)
+{
+    if ((buttons & SCE_CTRL_LTRIGGER) && (buttons & SCE_CTRL_RTRIGGER) && (buttons & SCE_CTRL_UP))
+        g_menu_active = !g_menu_active;
+}
+
+//--------------------------------------------------------------------
+// Initialization / deinitialization
+//--------------------------------------------------------------------
 int gui_init(void)
 {
+    // Allocate our internal GUI buffer (aligned to page size)
     int size         = (GUI_WIDTH * GUI_HEIGHT * sizeof(rgba_t) + 0xfff) & ~0xfff;
-    g_gui_buffer_uid = ksceKernelAllocMemBlock("gui", SCE_KERNEL_MEMBLOCK_TYPE_KERNEL_RW, size, NULL);
+    g_gui_buffer_uid = ksceKernelAllocMemBlock("gui_buffer", SCE_KERNEL_MEMBLOCK_TYPE_KERNEL_RW, size, NULL);
     if (g_gui_buffer_uid < 0)
         return g_gui_buffer_uid;
     ksceKernelGetMemBlockBase(g_gui_buffer_uid, (void**)&g_gui_buffer);
@@ -52,83 +60,122 @@ void gui_deinit(void)
         ksceKernelFreeMemBlock(g_gui_buffer_uid);
 }
 
-// Clear the GUI buffer (fill with black).
+//--------------------------------------------------------------------
+// Framebuffer and scaling
+//--------------------------------------------------------------------
+void gui_set_framebuf(const SceDisplayFrameBuf* pParam)
+{
+    // Copy display framebuffer parameters (the actual output buffer)
+    memcpy(&g_gui_fb, pParam, sizeof(SceDisplayFrameBuf));
+    // Calculate scaling ratios from our fixed reference (960x544) to the current display resolution.
+    g_gui_fb_w_ratio = pParam->width / 960.0f;
+    g_gui_fb_h_ratio = pParam->height / 544.0f;
+}
+
+//--------------------------------------------------------------------
+// Internal rendering: clear and text drawing into g_gui_buffer
+//--------------------------------------------------------------------
 void gui_clear(void)
 {
-    for (int i = 0; i < GUI_WIDTH * GUI_HEIGHT; i++)
-        g_gui_buffer[i] = (rgba_t){0, 0, 0, 255};
+    int total = GUI_WIDTH * GUI_HEIGHT;
+    for (int i = 0; i < total; i++)
+        g_gui_buffer[i] = g_color_bg;
 }
 
-// Draw a simple semi-transparent menu background.
-void gui_draw_menu_background(void)
+// Draw a single character at (x,y) in the internal buffer.
+// Assumes the font bitmap is arranged as contiguous 12x24 blocks per ASCII character.
+static void draw_char(char c, int x, int y)
 {
-    int x0 = 50, y0 = 50, x1 = 400, y1 = 150;
-    for (int y = y0; y < y1; y++)
+    // Fast path for space.
+    if (c == ' ')
     {
-        for (int x = x0; x < x1; x++)
+        for (int yy = 0; yy < (int)(g_gui_font_height * g_gui_font_scale); yy++)
         {
-            g_gui_buffer[y * GUI_WIDTH + x] = (rgba_t){50, 50, 50, 200};
-        }
-    }
-}
-
-// Draw a single character using FONT_TER_U18B.
-// The font data is assumed to be arranged as a bitmap with FONT_HEIGHT rows per character,
-// each row occupying FONT_BYTES_PER_ROW bytes. Characters are arranged sequentially,
-// starting from ASCII 0 (so you might need to adjust if your font starts at space ' ').
-void gui_draw_char(char c, int x, int y, rgba_t color)
-{
-    // Adjust for supported ASCII range if needed.
-    // Here we assume the font data begins at ASCII 0.
-    int char_index     = (int)c;
-    int bytes_per_char = FONT_HEIGHT * FONT_BYTES_PER_ROW;
-    int char_offset    = char_index * bytes_per_char;
-
-    for (int row = 0; row < FONT_HEIGHT; row++)
-    {
-        int row_offset = char_offset + row * FONT_BYTES_PER_ROW;
-        for (int col = 0; col < FONT_WIDTH; col++)
-        {
-            int byte_index = row_offset + (col / 8);
-            // Bit order: MSB first.
-            if (FONT_TER_U18B[byte_index] & (1 << (7 - (col % 8))))
+            if (y + yy >= GUI_HEIGHT)
+                break;
+            for (int xx = 0; xx < (int)(g_gui_font_width * g_gui_font_scale); xx++)
             {
-                int px = x + col;
-                int py = y + row;
-                if (px < 0 || py < 0 || px >= GUI_WIDTH || py >= GUI_HEIGHT)
-                    continue;
-                g_gui_buffer[py * GUI_WIDTH + px] = color;
+                if (x + xx >= GUI_WIDTH)
+                    break;
+                g_gui_buffer[(y + yy) * GUI_WIDTH + (x + xx)] = g_color_bg;
             }
         }
+        return;
+    }
+
+    // Calculate bytes per row in the font bitmap.
+    int bytes_per_row = (g_gui_font_width + 7) / 8;
+    // Compute the offset in the font bitmap for this character.
+    int char_offset = ((int)c) * g_gui_font_height * bytes_per_row;
+
+    for (int yy = 0; yy < (int)(g_gui_font_height * g_gui_font_scale); yy++)
+    {
+        int font_y = yy / g_gui_font_scale;
+        if (y + yy >= GUI_HEIGHT)
+            break;
+        for (int xx = 0; xx < (int)(g_gui_font_width * g_gui_font_scale); xx++)
+        {
+            int font_x = xx / g_gui_font_scale;
+            if (x + xx >= GUI_WIDTH)
+                break;
+            int           byte_index                      = char_offset + font_y * bytes_per_row + (font_x / 8);
+            int           bit_index                       = 7 - (font_x % 8);
+            unsigned char byte                            = g_gui_font[byte_index];
+            bool          pixel_on                        = ((byte >> bit_index) & 0x1) != 0;
+            g_gui_buffer[(y + yy) * GUI_WIDTH + (x + xx)] = pixel_on ? g_color_text : g_color_bg;
+        }
     }
 }
 
-// Print a string at (x,y) using the font.
-void gui_print(const char* str, int x, int y, rgba_t color)
+// Render a null-terminated string at (x,y) into the internal buffer.
+void gui_print(int x, int y, const char* str)
 {
     while (*str)
     {
-        gui_draw_char(*str, x, y, color);
-        x += FONT_WIDTH; // Advance by font width.
+        draw_char(*str, x, y);
+        x += (int)(g_gui_font_width * g_gui_font_scale);
         str++;
     }
 }
 
-// Copy the GUI buffer to the display frame buffer.
-void gui_copy(void)
+void gui_printf(int x, int y, const char* format, ...)
 {
-    for (int line = 0; line < GUI_HEIGHT; line++)
-    {
-        int dst_offset = line * g_gui_fb.pitch;
-        int src_offset = line * GUI_WIDTH;
-        ksceKernelMemcpyKernelToUser((uintptr_t)&((rgba_t*)g_gui_fb.base)[dst_offset], &g_gui_buffer[src_offset],
-                                     sizeof(rgba_t) * GUI_WIDTH);
-    }
+    char    buffer[256];
+    va_list args;
+    va_start(args, format);
+    vsnprintf(buffer, sizeof(buffer), format, args);
+    va_end(args);
+    gui_print(x, y, buffer);
 }
 
-// Check input and toggle menu when SCE_CTRL_LTRIGGER and SCE_CTRL_RIGHT are pressed.
-void gui_input_check(uint32_t buttons)
+//--------------------------------------------------------------------
+// Copy the rendered GUI to the actual display framebuffer.
+// This simple implementation scales per-line and copies via ksceKernelMemcpyKernelToUser.
+//--------------------------------------------------------------------
+void gui_cpy(void)
 {
-    if ((buttons & SCE_CTRL_LTRIGGER) && (buttons & SCE_CTRL_RIGHT))
-        g_menu_visible = !g_menu_visible;
+    if (!g_menu_active)
+        return;
+
+    gui_print(10, 10, "MENU ACTIVE");
+    // Calculate scaled dimensions and offsets.
+    int scaled_width  = (int)(GUI_WIDTH * g_gui_fb_w_ratio);
+    int scaled_height = (int)(GUI_HEIGHT * g_gui_fb_h_ratio);
+    int x_offset      = (g_gui_fb.width - scaled_width) / 2;
+    int y_offset      = (g_gui_fb.height - scaled_height) / 2;
+
+    // Loop through each line of the fixed GUI buffer.
+    for (int line = 0; line < GUI_HEIGHT; line++)
+    {
+        int fb_line = y_offset + (int)(line * g_gui_fb_h_ratio);
+        if (fb_line >= (int)g_gui_fb.height)
+            break;
+
+        rgba_t* src_line    = &g_gui_buffer[line * GUI_WIDTH];
+        int     dest_offset = fb_line * g_gui_fb.pitch + x_offset;
+
+        // For simplicity, perform a linear copy per line.
+        ksceKernelMemcpyKernelToUser((uintptr_t)&((rgba_t*)g_gui_fb.base)[dest_offset], src_line,
+                                     sizeof(rgba_t) * scaled_width);
+    }
 }
