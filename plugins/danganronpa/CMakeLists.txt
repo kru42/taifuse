@@ -18,15 +18,27 @@ add_executable(danganronpa_plugin
   src/main.c
 )
 
+include_directories("../../src")
+
+# # Specify the binary directory for kubridge
+# set(KUBRIDGE_BINARY_DIR "${CMAKE_BINARY_DIR}/kubridge")
+
+# # Add kubridge subdirectory (source and binary directories)
+# add_subdirectory("../../kubridge" "${KUBRIDGE_BINARY_DIR}")
+
+target_link_directories(danganronpa_plugin BEFORE PRIVATE ${CMAKE_SOURCE_DIR}/../../build)
+
+# Add kubridge to the target libraries
 target_link_libraries(danganronpa_plugin
-  taipool
+  #taifuse_stub
   taihen_stub
+  taihenModuleUtils_stub
   k
   gcc
   SceLibKernel_stub
   SceLibc_stub
   SceNet_stub
-  SceKernelModulemgr_stub 
+  SceKernelModulemgr_stub
   SceNetCtl_stub
   SceSysmodule_stub
   SceKernelThreadMgr_stub
@@ -34,6 +46,7 @@ target_link_libraries(danganronpa_plugin
   SceRtc_stub
   SceAppMgr_stub
   ScePower_stub
+  kubridge_stub  # Link kubridge here
 )
 
 vita_create_self(danganronpa_plugin.suprx danganronpa_plugin CONFIG exports.yml UNSAFE)

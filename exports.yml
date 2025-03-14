@@ -6,3 +6,8 @@ taifuse:
   main:
     start: module_start
     stop: module_stop
+  modules:
+    taifuse:
+      syscall: true
+      functions:
+        - kuConsolePrintf: 0xA82F85B2

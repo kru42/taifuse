@@ -4,7 +4,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#define printf sceClibPrintf
+#include <kubridge.h>
+//#include <console.h>
 
 tai_hook_ref_t gxt_hook_ref;
 
@@ -17,17 +18,20 @@ int get_dr_module(tai_module_info_t* pt_module_info)
 int loads_logo_gxt_hook(const char* a1, void* args)
 {
     printf("loads_logo_gxt_hook: hello, called with \"%s\"...\n", a1);
-
     return TAI_CONTINUE(int, gxt_hook_ref, a1, args);
 }
 
 void _start() __attribute__((weak, alias("module_start")));
 int  module_start(SceSize argc, const void* args)
 {
+    printf("======= module_start =======\n");
+    printf("pls dont crash");
+    //kuConsolePrintf("hello hello uw//u");
+
     uint32_t func_addr = 0x810A9A96;
 
     tai_module_info_t pt_module_info;
-    int               res = get_dr_module(&pt_module_info);
+    int res = get_dr_module(&pt_module_info);
     if (res < 0)
     {
         printf("danganronpa_plugin: error getting module info via taihen!\n");

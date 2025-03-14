@@ -61,7 +61,7 @@ void console_handle_input(SceCtrlButtons buttons)
     }
 }
 
-void console_log(const char* format, ...)
+void kuConsolePrintf(const char* format, ...)
 {
     char    buffer[CONSOLE_MAX_LINE_LENGTH];
     va_list args;
@@ -100,7 +100,7 @@ void console_draw(void)
     g_color_text.rgba.b = 180;
 
     // Draw a header for clarity.
-    gui_print(CONSOLE_START_X, CONSOLE_START_Y - CONSOLE_LINE_SPACING, "Console:");
+    // gui_print(CONSOLE_START_X, CONSOLE_START_Y - CONSOLE_LINE_SPACING, "Console:");
 
     // Draw each logged line.
     for (int i = 0; i < g_console_line_count; i++)

@@ -18,7 +18,7 @@ static SceUID log_fd = -1;
         snprintf(buffer, sizeof(buffer), fmt, ##__VA_ARGS__);                                                     \
         ksceIoWrite(log_fd, buffer, strnlen(buffer, sizeof(buffer)));                                             \
         ksceIoWrite(log_fd, "\n", 1);                                                                             \
-        console_log("%s\n", buffer);                                                                              \
+        kuConsolePrintf("%s\n", buffer);                                                                              \
     } while (0)
 
 #endif
