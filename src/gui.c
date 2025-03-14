@@ -2,8 +2,9 @@
 #include <vitasdkkern.h>
 #include <stdbool.h>
 
-#include "gui_font_ter-u24b.h"
 #include "log.h"
+#include "cheats.h"
+#include "fonts/gui_font_ter-u24b.h"
 
 // Global variables for our internal GUI buffer and display framebuffer.
 static SceDisplayFrameBuf g_gui_fb = {
@@ -31,17 +32,30 @@ static rgba_t g_color_bg   = {.rgba = {0, 0, 0, 255}};
 //--------------------------------------------------------------------
 // Input handling: Toggle menu with UP + LTRIGGER + RTRIGGER
 //--------------------------------------------------------------------
-static bool     g_menu_active  = false;
+static bool           g_menu_active = false;
+static SceCtrlButtons g_pad_prev    = 0;
+static SceCtrlButtons g_pad_pressed = 0;
 
 void gui_input_check(SceCtrlButtons buttons)
 {
     static bool combo_pressed = false;
     bool        is_pressed = (buttons & SCE_CTRL_LTRIGGER) && (buttons & SCE_CTRL_RTRIGGER) && (buttons & SCE_CTRL_UP);
+
+    g_pad_pressed = (buttons & ~g_pad_prev); // Detect newly pressed buttons
+
     if (is_pressed && !combo_pressed)
     {
+        // Toggle menu visibility
         g_menu_active = !g_menu_active;
+        combo_pressed = true; // Mark combo as pressed
     }
-    combo_pressed = is_pressed;
+    else if (!is_pressed && combo_pressed)
+    {
+        // Reset combo_pressed when combo is released
+        combo_pressed = false;
+    }
+
+    g_pad_prev = buttons; // Store the previous state for next check
 }
 
 //--------------------------------------------------------------------
@@ -156,12 +170,14 @@ void gui_printf(int x, int y, const char* format, ...)
 // Copy the rendered GUI to the actual display framebuffer.
 // This simple implementation scales per-line and copies via ksceKernelMemcpyKernelToUser.
 //--------------------------------------------------------------------
+void draw_cheats_menu();
 void gui_cpy(void)
 {
     if (!g_menu_active)
         return;
 
-    gui_print(10, 10, "taifuse menu");
+    draw_cheats_menu();
+
     // Calculate scaled dimensions and offsets.
     int scaled_width  = (int)(GUI_WIDTH * g_gui_fb_w_ratio);
     int scaled_height = (int)(GUI_HEIGHT * g_gui_fb_h_ratio);
@@ -181,5 +197,57 @@ void gui_cpy(void)
         // For simplicity, perform a linear copy per line.
         ksceKernelMemcpyKernelToUser((uintptr_t)&((rgba_t*)g_gui_fb.base)[dest_offset], src_line,
                                      sizeof(rgba_t) * scaled_width);
+    }
+}
+
+void draw_cheats_menu()
+{
+    if (!g_menu_active)
+        return;
+
+    gui_clear();
+
+    // Title
+    gui_print(50, 30, "Cheats Menu");
+
+    static int selected_option = 0;
+    char       reload_option[64];
+    snprintf(reload_option, sizeof(reload_option), "Reload cheats for %s", g_titleid);
+
+    const char* options[]    = {reload_option, "Exit"};
+    const int   option_count = sizeof(options) / sizeof(options[0]);
+
+    // Input handling
+    if (g_pad_pressed & SCE_CTRL_UP)
+    {
+        selected_option = (selected_option - 1 + option_count) % option_count;
+    }
+    if (g_pad_pressed & SCE_CTRL_DOWN)
+    {
+        selected_option = (selected_option + 1) % option_count;
+    }
+    if (g_pad_pressed & SCE_CTRL_CROSS)
+    {
+        if (selected_option == 0)
+        {
+            free_cheats(g_cheat_groups, g_cheat_group_count);
+            if (load_cheats("ux0:data/taifuse/cheats.ini", &g_cheat_groups, &g_cheat_group_count) == 0)
+                set_cheats_enabled_for_game(g_cheat_groups, g_cheat_group_count, g_titleid, true);
+        }
+        else
+        {
+            g_menu_active = false;
+        }
+    }
+
+    // Render options
+    for (int i = 0; i < option_count; i++)
+    {
+        if (i == selected_option)
+            g_color_text.rgba.r = 255, g_color_text.rgba.g = 0, g_color_text.rgba.b = 0; // Red highlight
+        else
+            g_color_text.rgba.r = 255, g_color_text.rgba.g = 255, g_color_text.rgba.b = 255; // White
+
+        gui_print(60, 60 + i * 30, options[i]);
     }
 }

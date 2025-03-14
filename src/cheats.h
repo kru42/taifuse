@@ -31,6 +31,9 @@ typedef struct
     size_t   cheat_count;              // How many cheats are in this group
 } cheat_group_t;
 
+extern cheat_group_t *g_cheat_groups;
+extern size_t g_cheat_group_count;
+
 /**
  * Loads cheats from a file (e.g. "ux0:data/taifuse/cheats.txt").
  *

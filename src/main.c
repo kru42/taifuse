@@ -22,10 +22,11 @@ static tai_hook_ref_t g_display_fb_hook_ref;
 static sceKernelGetProcessTitleId_t             sceKernelSysrootGetProcessTitleIdForKernel;
 static sceKernelUnloadProcessModulesForKernel_t sceKernelUnloadProcessModulesForKernel;
 
-static cheat_group_t* g_cheat_groups;
-static size_t         g_cheat_group_count;
+cheat_group_t* g_cheat_groups;
+size_t         g_cheat_group_count;
 
 SceUID g_taifuse_pool;
+char   g_titleid[32];
 
 static int taifuse_thread(SceSize args, void* argp)
 {
@@ -63,15 +64,20 @@ int sceKernelStartPreloadingModulesForKernel_hook(SceUID pid, void* args)
     char titleid[32] = {0};
     sceKernelSysrootGetProcessTitleIdForKernel(pid, titleid, sizeof(titleid));
 
-    LOG("%s is running with pid %d", titleid, pid);
-
-    LOG("calling original sceKernelStartPreloadingModulesForKernel()...");
     int result = TAI_CONTINUE(int, game_load_hook_ref, pid, args);
     if (result < 0)
     {
         LOG("original sceKernelStartPreloadingModulesForKernel() failed, aborted");
         return result;
     }
+
+    // Check if titleid starts with PC, if not bail out since we're not dealing with a game
+    if (strncmp(titleid, "PC", 2) != 0)
+    {
+        return result;
+    }
+
+    memcpy(g_titleid, titleid, MAX_TITLEID_LEN);
 
     // Reload the cheat file on every game load.
     // Reset our static cheat group count.
@@ -122,6 +128,7 @@ int  module_start(SceSize argc, const void* args)
 
     // TODO: hook unload (reverse vitacheat lol to figure out what function), and uninstall
     // game hooks etc..
+    // also obviously change game state (is running/not running/current titleid)
     if (uid < 0)
     {
         LOG("failed to hook sceKernelStartPreloadingModulesForKernel: 0x%08x, aborted", uid);

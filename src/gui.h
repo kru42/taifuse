@@ -4,6 +4,8 @@
 #include <vitasdkkern.h>
 #include <stdint.h>
 
+extern char g_titleid[32];
+
 // GUI dimensions (fixed internal resolution)
 #define GUI_WIDTH  672
 #define GUI_HEIGHT 380
