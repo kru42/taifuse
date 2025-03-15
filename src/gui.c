@@ -140,32 +140,29 @@ void gui_printf(int x, int y, const char* format, ...)
     gui_print(x, y, buffer);
 }
 
-//--------------------------------------------------------------------
-// Copy the rendered GUI to the actual display framebuffer.
-// This simple implementation scales per-line and copies via ksceKernelMemcpyKernelToUser.
-//--------------------------------------------------------------------
 void gui_cpy(void)
 {
     if (!menu_is_active() && !console_is_active() && !hex_browser_is_active())
         return;
 
-    // Calculate scaled dimensions and offsets.
     int scaled_width  = (int)(GUI_WIDTH * g_gui_fb_w_ratio);
     int scaled_height = (int)(GUI_HEIGHT * g_gui_fb_h_ratio);
     int x_offset      = (g_gui_fb.width - scaled_width) / 2;
     int y_offset      = (g_gui_fb.height - scaled_height) / 2;
 
-    // Loop through each line of the fixed GUI buffer.
-    for (int line = 0; line < GUI_HEIGHT; line++)
+    for (int line = 0; line < scaled_height; line++)
     {
-        int fb_line = y_offset + (int)(line * g_gui_fb_h_ratio);
-        if (fb_line >= (int)g_gui_fb.height)
+        int src_line_idx = (int)(line / g_gui_fb_h_ratio); // Correctly map to source
+        if (src_line_idx >= GUI_HEIGHT)
+            break; // Prevent overshooting
+
+        int fb_line = y_offset + line;
+        if (fb_line >= g_gui_fb.height)
             break;
 
-        rgba_t* src_line    = &g_gui_buffer[line * GUI_WIDTH];
+        rgba_t* src_line    = &g_gui_buffer[src_line_idx * GUI_WIDTH];
         int     dest_offset = fb_line * g_gui_fb.pitch + x_offset;
 
-        // For simplicity, perform a linear copy per line.
         ksceKernelMemcpyKernelToUser((uintptr_t)&((rgba_t*)g_gui_fb.base)[dest_offset], src_line,
                                      sizeof(rgba_t) * scaled_width);
     }
