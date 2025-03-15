@@ -149,18 +149,17 @@ void gui_printf(int x, int y, const char* format, ...)
 // Check if UI state changed
 bool gui_state_changed()
 {
-    bool current_menu_active        = menu_is_active();
-    bool current_console_active     = console_is_active();
-    bool current_hex_browser_active = hex_browser_is_active();
+    bool current_menu_active = menu_is_active();
+    // bool current_console_active     = console_is_active();
+    // bool current_hex_browser_active = hex_browser_is_active();
 
-    bool changed =
-        (current_menu_active != g_last_menu_active) ||
-        (current_console_active != g_last_console_active); // ||
-                                                           //(current_hex_browser_active != g_last_hex_browser_active);
+    bool changed = (current_menu_active != g_last_menu_active); //||
+    // (current_console_active != g_last_console_active); // ||
+    //(current_hex_browser_active != g_last_hex_browser_active);
 
-    g_last_menu_active    = current_menu_active;
-    g_last_console_active = current_console_active;
-    // g_last_hex_browser_active = current_hex_browser_active;
+    g_last_menu_active = current_menu_active;
+    // g_last_console_active = current_console_active;
+    //  g_last_hex_browser_active = current_hex_browser_active;
 
     return changed;
 }
@@ -212,8 +211,9 @@ void gui_cpy(void)
     int x_offset      = (g_gui_fb.width - scaled_width) / 2;
     int y_offset      = (g_gui_fb.height - scaled_height) / 2;
 
-    // Define corners radius for rounded corners
-    const int corner_radius = 16; // Adjust as needed
+    // Define corner radius for rounded corners
+    const int corner_radius    = 16;
+    const int corner_radius_sq = corner_radius * corner_radius;
 
     for (int line = 0; line < scaled_height; line++)
     {
@@ -225,30 +225,19 @@ void gui_cpy(void)
         if (fb_line >= g_gui_fb.height)
             break;
 
-        int xd = 0;
-        if (src_line_idx < corner_radius)
+        int inset_x = 0;
+
+        if (src_line_idx < corner_radius || src_line_idx >= GUI_HEIGHT - corner_radius)
         {
-            // Top corners
-            int delta    = corner_radius - src_line_idx;
-            int sqrt_val = isqrt(corner_radius * corner_radius - delta * delta);
-            xd           = corner_radius - sqrt_val;
-        }
-        else if (src_line_idx >= GUI_HEIGHT - corner_radius)
-        {
-            // Bottom corners
-            int bottom_distance = GUI_HEIGHT - src_line_idx - 1;
-            int delta           = corner_radius - bottom_distance;
-            int sqrt_val        = isqrt(corner_radius * corner_radius - delta * delta);
-            xd                  = corner_radius - sqrt_val;
+            int delta = corner_radius - (src_line_idx < corner_radius ? src_line_idx : (GUI_HEIGHT - src_line_idx - 1));
+            inset_x   = corner_radius - isqrt(corner_radius_sq - delta * delta);
         }
 
-        // Scale the corner inset
-        int scaled_xd = (int)(xd * g_gui_fb_w_ratio);
+        int scaled_x_offset = (int)(inset_x * g_gui_fb_w_ratio);
+        int fb_offset       = fb_line * g_gui_fb.pitch + x_offset + scaled_x_offset;
+        int row_width       = scaled_width - (scaled_x_offset * 2);
 
-        int off   = fb_line * g_gui_fb.pitch + x_offset + scaled_xd;
-        int width = scaled_width - (scaled_xd * 2);
-
-        ksceKernelMemcpyKernelToUser((uintptr_t)&((rgba_t*)g_gui_fb.base)[off],
-                                     &g_gui_buffer[src_line_idx * GUI_WIDTH + xd], sizeof(rgba_t) * width);
+        ksceKernelMemcpyKernelToUser((uintptr_t)&((rgba_t*)g_gui_fb.base)[fb_offset],
+                                     &g_gui_buffer[src_line_idx * GUI_WIDTH + inset_x], sizeof(rgba_t) * row_width);
     }
 }

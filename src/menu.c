@@ -58,6 +58,11 @@ void menu_handle_input(SceCtrlButtons buttons)
         combo_pressed = false;
     }
 
+    if (g_menu_active != g_last_menu_active)
+    {
+        g_last_menu_active = g_menu_active;
+    }
+
     // If the menu is active and we're in a game, show the cheat menu
     if (g_menu_active && g_game_pid != NULL)
     {
@@ -139,7 +144,7 @@ void menu_handle_input(SceCtrlButtons buttons)
             }
             else if (g_selected_option == 1)
             {
-                // Unimplemented
+                kscePowerRequestColdReset();
             }
         }
     }
@@ -158,7 +163,7 @@ void menu_draw_template(void)
     g_color_text.rgba.r = 255;
     g_color_text.rgba.g = 255;
     g_color_text.rgba.b = 255;
-    gui_print(50, 30, "Taifuse Menu");
+    gui_print(50, 30, "Taifuse menu");
 
     // Restore original color in case it's used elsewhere.
     g_color_text = original_color;
@@ -206,7 +211,7 @@ void menu_draw_dynamic(void)
     }
     else if (g_game_pid == 0)
     {
-        const char* options[]    = {"Soft reboot", "Cold reboot (unimplemented)"};
+        const char* options[]    = {"Soft reboot", "Cold reboot"};
         const int   option_count = sizeof(options) / sizeof(options[0]);
 
         for (int i = 0; i < option_count; i++)
