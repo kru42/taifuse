@@ -204,40 +204,58 @@ static inline int isqrt(int num)
     return res;
 }
 
+// void gui_cpy(void)
+// {
+//     int scaled_width  = (int)(GUI_WIDTH * g_gui_fb_w_ratio);
+//     int scaled_height = (int)(GUI_HEIGHT * g_gui_fb_h_ratio);
+//     int x_offset      = (g_gui_fb.width - scaled_width) / 2;
+//     int y_offset      = (g_gui_fb.height - scaled_height) / 2;
+
+//     // Define corner radius for rounded corners
+//     const int corner_radius    = 16;
+//     const int corner_radius_sq = corner_radius * corner_radius;
+
+//     for (int line = 0; line < scaled_height; line++)
+//     {
+//         int src_line_idx = (int)(line / g_gui_fb_h_ratio);
+//         if (src_line_idx >= GUI_HEIGHT)
+//             break;
+
+//         int fb_line = y_offset + line;
+//         if (fb_line >= g_gui_fb.height)
+//             break;
+
+//         int inset_x = 0;
+
+//         if (src_line_idx < corner_radius || src_line_idx >= GUI_HEIGHT - corner_radius)
+//         {
+//             int delta = corner_radius - (src_line_idx < corner_radius ? src_line_idx : (GUI_HEIGHT - src_line_idx -
+//             1)); inset_x   = corner_radius - isqrt(corner_radius_sq - delta * delta);
+//         }
+
+//         int scaled_x_offset = (int)(inset_x * g_gui_fb_w_ratio);
+//         int fb_offset       = fb_line * g_gui_fb.pitch + x_offset + scaled_x_offset;
+//         int row_width       = scaled_width - (scaled_x_offset * 2);
+
+//         ksceKernelMemcpyKernelToUser((uintptr_t)&((rgba_t*)g_gui_fb.base)[fb_offset],
+//                                      &g_gui_buffer[src_line_idx * GUI_WIDTH + inset_x], sizeof(rgba_t) * row_width);
+//     }
+// }
+
 void gui_cpy(void)
 {
-    int scaled_width  = (int)(GUI_WIDTH * g_gui_fb_w_ratio);
-    int scaled_height = (int)(GUI_HEIGHT * g_gui_fb_h_ratio);
-    int x_offset      = (g_gui_fb.width - scaled_width) / 2;
-    int y_offset      = (g_gui_fb.height - scaled_height) / 2;
+    int w = (int)(GUI_WIDTH * g_gui_fb_w_ratio);
+    int h = (int)(GUI_HEIGHT * g_gui_fb_h_ratio);
+    int x = (g_gui_fb.width / 2) - (w / 2);
+    int y = (g_gui_fb.height / 2) - (h / 2);
 
-    // Define corner radius for rounded corners
-    const int corner_radius    = 16;
-    const int corner_radius_sq = corner_radius * corner_radius;
-
-    for (int line = 0; line < scaled_height; line++)
+    for (int line = 0; line < h; line++)
     {
-        int src_line_idx = (int)(line / g_gui_fb_h_ratio);
-        if (src_line_idx >= GUI_HEIGHT)
-            break;
+        int xd      = 0;
+        int xd_line = line * (GUI_HEIGHT / g_gui_fb.height);
 
-        int fb_line = y_offset + line;
-        if (fb_line >= g_gui_fb.height)
-            break;
-
-        int inset_x = 0;
-
-        if (src_line_idx < corner_radius || src_line_idx >= GUI_HEIGHT - corner_radius)
-        {
-            int delta = corner_radius - (src_line_idx < corner_radius ? src_line_idx : (GUI_HEIGHT - src_line_idx - 1));
-            inset_x   = corner_radius - isqrt(corner_radius_sq - delta * delta);
-        }
-
-        int scaled_x_offset = (int)(inset_x * g_gui_fb_w_ratio);
-        int fb_offset       = fb_line * g_gui_fb.pitch + x_offset + scaled_x_offset;
-        int row_width       = scaled_width - (scaled_x_offset * 2);
-
+        int fb_offset = ((line + y) * g_gui_fb.pitch + x + xd);
         ksceKernelMemcpyKernelToUser((uintptr_t)&((rgba_t*)g_gui_fb.base)[fb_offset],
-                                     &g_gui_buffer[src_line_idx * GUI_WIDTH + inset_x], sizeof(rgba_t) * row_width);
+                                     &((rgba_t*)g_gui_buffer)[line * GUI_WIDTH + xd], sizeof(rgba_t) * (w - xd * 2));
     }
 }
