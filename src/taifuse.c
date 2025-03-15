@@ -14,14 +14,11 @@ int custom_strlen(const char* user_str)
 
     while (1)
     {
-        ksceDebugPrintf("Reading userland string...\n");
         // Read one byte at a time from userland memory
         if (ksceKernelMemcpyUserToKernel(&temp_char, user_str + length, 1) < 0)
         {
             return -1; // If copying fails, return error
         }
-
-        ksceDebugPrintf("Read one byte at a time from userland memory...\n");
 
         // If the byte is a null terminator, stop
         if (temp_char == '\0')
@@ -47,8 +44,7 @@ int tf_console_print(char* message)
     int length = custom_strlen(message);
     if (length < 0)
     {
-        ksceDebugPrintf("Failed to get string length from userland.\n");
-        ksceDebugPrintf("Length: %d\n", length);
+        // ksceDebugPrintf("Failed to get string length from userland.\n");
         EXIT_SYSCALL(state);
         return -1;
     }
@@ -61,7 +57,7 @@ int tf_console_print(char* message)
     // Use ksceKernelMemcpyUserToKernel to copy the data
     if (ksceKernelMemcpyUserToKernel(kernel_buffer, message, length) < 0)
     {
-        ksceDebugPrintf("Failed to copy message from userland to kernel space.\n");
+        // ksceDebugPrintf("Failed to copy message from userland to kernel space.\n");
         EXIT_SYSCALL(state);
         return -1;
     }

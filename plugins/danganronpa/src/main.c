@@ -16,7 +16,9 @@ int get_dr_module(tai_module_info_t* pt_module_info)
 
 int loads_logo_gxt_hook(const char* a1, void* args)
 {
-    // kuConsolePrintf("loads_logo_gxt_hook: hello, called with \"%s\"...\n", a1);
+    char buffer[256];
+    snprintf(buffer, sizeof(buffer), "loads_logo_gxt_hook: %s", a1);
+    tf_console_print(buffer);
     return TAI_CONTINUE(int, gxt_hook_ref, a1, args);
 }
 
@@ -24,9 +26,6 @@ void* start() __attribute__((weak, alias("module_start")));
 
 int module_start(SceSize argc, const void* args)
 {
-    printf("======= module_start =======\n");
-    printf("plsssssssssss dont crash\n");
-
     uint32_t func_addr = 0x810A9A96;
 
     char buffer[60];

@@ -23,6 +23,7 @@ add_executable(taifuse
   src/plugin.c
   src/menu.c
   src/console.c
+  src/hex_browser.c
 )
 
 target_link_libraries(taifuse
@@ -38,6 +39,7 @@ target_link_libraries(taifuse
   SceIofilemgrForDriver_stub
   SceDebugForDriver_stub
   SceCtrlForDriver_stub
+  SceDisplayForDriver_stub
 )
 
 vita_create_self(taifuse.skprx taifuse CONFIG exports.yml UNSAFE)

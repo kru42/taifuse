@@ -6,6 +6,7 @@
 #include "cheats.h"
 #include "menu.h"
 #include "console.h"
+#include "hex_browser.h"
 #include "fonts/gui_font_ter-u24b.h"
 
 // Global variables for our internal GUI buffer and display framebuffer.
@@ -22,10 +23,10 @@ static rgba_t* g_gui_buffer;
 static SceUID  g_gui_buffer_uid = -1;
 
 // Font parameters (using your supplied 12x24 font)
-static const unsigned char* g_gui_font        = FONT_TER_U24B;
-static unsigned char        g_gui_font_width  = GUI_FONT_W;
-static unsigned char        g_gui_font_height = GUI_FONT_H;
-static float                g_gui_font_scale  = 1.0f;
+const unsigned char* g_gui_font        = FONT_TER_U24B;
+unsigned char        g_gui_font_width  = GUI_FONT_W;
+unsigned char        g_gui_font_height = GUI_FONT_H;
+float                g_gui_font_scale  = 1.0f;
 
 // Colors for rendering
 rgba_t g_color_text = {.rgba = {255, 255, 255, 255}};
@@ -145,7 +146,7 @@ void gui_printf(int x, int y, const char* format, ...)
 //--------------------------------------------------------------------
 void gui_cpy(void)
 {
-    if (!menu_is_active() && !console_is_active())
+    if (!menu_is_active() && !console_is_active() && !hex_browser_is_active())
         return;
 
     if (menu_is_active() && !console_is_active())
@@ -155,6 +156,10 @@ void gui_cpy(void)
     else if (console_is_active())
     {
         console_draw();
+    }
+    else if (hex_browser_is_active())
+    {
+        hex_browser_draw();
     }
 
     // Calculate scaled dimensions and offsets.

@@ -66,19 +66,21 @@ void console_log(const char* buffer)
     // If we've reached our max, shift all lines up (discard the oldest).
     if (g_console_line_count >= CONSOLE_MAX_LINES)
     {
-        for (int i = 1; i < CONSOLE_MAX_LINES; i++)
+        for (int i = 0; i < CONSOLE_MAX_LINES - 1; i++)
         {
-            memcpy(g_console_lines[i - 1], g_console_lines[i], CONSOLE_MAX_LINE_LENGTH);
+            memcpy(g_console_lines[i], g_console_lines[i + 1], CONSOLE_MAX_LINE_LENGTH);
         }
+        // Only decrement the count by 1 to make room for the new line
         g_console_line_count = CONSOLE_MAX_LINES - 1;
     }
 
-    // Add the new line.
+    // Add the new line at the current position
     strncpy(g_console_lines[g_console_line_count], buffer, CONSOLE_MAX_LINE_LENGTH - 1);
     g_console_lines[g_console_line_count][CONSOLE_MAX_LINE_LENGTH - 1] = '\0';
     g_console_line_count++;
 }
 
+// Draws the console on the screen.
 void console_draw(void)
 {
     if (!console_is_active())
@@ -98,9 +100,11 @@ void console_draw(void)
     gui_print(CONSOLE_START_X, CONSOLE_START_Y, "Console:");
 
     // Draw each logged line.
+    int start_y = CONSOLE_START_Y + CONSOLE_LINE_SPACING;
     for (int i = 0; i < g_console_line_count; i++)
     {
-        int y = CONSOLE_START_Y + i * CONSOLE_LINE_SPACING;
+        // Calculate the y position for the current line
+        int y = start_y + (i * CONSOLE_LINE_SPACING);
         gui_print(CONSOLE_START_X, y, g_console_lines[i]);
     }
 

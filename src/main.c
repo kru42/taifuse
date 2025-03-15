@@ -7,6 +7,7 @@
 #include "menu.h"
 #include "console.h"
 #include "gui.h"
+#include "hex_browser.h"
 #include "taifuse.h"
 
 // Utility macro
@@ -58,6 +59,7 @@ static int taifuse_thread(SceSize args, void* argp)
             // TODO: Prevent having both overlays on screen
             menu_handle_input(kctrl.buttons);
             console_handle_input(kctrl.buttons);
+            hex_browser_handle_input(kctrl.buttons);
         }
 
         ksceKernelDelayThread(100 * 1000);
@@ -209,6 +211,7 @@ int  module_start(SceSize argc, const void* args)
     // Init menu and console
     menu_init();
     console_init();
+    hex_browser_init();
 
     res = taiHookFunctionExportForKernel(KERNEL_PID, &g_display_fb_hook_ref, "SceDisplay", 0x9FED47AC, 0x16466675,
                                          ksceDisplaySetFrameBufInternal_patched);
