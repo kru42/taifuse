@@ -63,8 +63,8 @@ static int taifuse_thread(SceSize args, void* argp)
         {
             // Handle input
             menu_handle_input(kctrl.buttons);
-            // console_handle_input(kctrl.buttons);
-            //  hex_browser_handle_input(kctrl.buttons);
+            console_handle_input(kctrl.buttons);
+            hex_browser_handle_input(kctrl.buttons);
         }
 
         // Check if UI state or FB resolution changed
@@ -79,28 +79,22 @@ static int taifuse_thread(SceSize args, void* argp)
         // Draw templates on state/res change
         if (g_ui_state_changed)
         {
-            // static int n_clears = 0;
-            // char       buffer[256];
-            // snprintf(buffer, 256, "state changed %d", n_clears);
-            // console_log(buffer);
-            // n_clears++;
-
             gui_clear();
             if (menu_is_active())
             {
                 // Draw the static template parts of menu
                 menu_draw_template();
             }
-            // else if (console_is_active())
-            // {
-            //     // Draw the static template parts of console
-            //     console_draw_template();
-            // }
-            // else if (hex_browser_is_active())
-            // {
-            //     // Draw the static template parts of hex browser
-            //     hex_browser_draw_template();
-            // }
+            else if (console_is_active())
+            {
+                // Draw the static template parts of console
+                console_draw_template();
+            }
+            else if (hex_browser_is_active())
+            {
+                // Draw the static template parts of hex browser
+                hex_browser_draw_template();
+            }
             g_ui_state_changed = false;
         }
 
@@ -109,14 +103,14 @@ static int taifuse_thread(SceSize args, void* argp)
         {
             menu_draw_dynamic(); // Only draw changing parts
         }
-        // else if (console_is_active())
-        // {
-        //     console_draw_dynamic(); // Only draw changing parts
-        // }
-        // else if (hex_browser_is_active())
-        // {
-        //     hex_browser_draw_dynamic(); // Only draw changing parts
-        // }
+        else if (console_is_active())
+        {
+            console_draw_dynamic(); // Only draw changing parts
+        }
+        else if (hex_browser_is_active())
+        {
+            hex_browser_draw_dynamic(); // Only draw changing parts
+        }
 
         ksceKernelDelayThread(100 * 1000);
     }
@@ -149,7 +143,7 @@ int ksceDisplaySetFrameBufInternal_patched(int head, int index, const SceDisplay
         goto DISPLAY_HOOK_RET;
 
     // Only copy if any UI is active
-    if (menu_is_active() || console_is_active()) // || hex_browser_is_active())
+    if (menu_is_active() || console_is_active() || hex_browser_is_active())
     {
         gui_set_framebuf(pParam);
         gui_cpy();
