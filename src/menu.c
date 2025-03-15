@@ -93,7 +93,7 @@ void menu_handle_input(SceCtrlButtons buttons)
                 if (sceKernelKillProcessForKernel == NULL)
                 {
                     if (module_get_export_func(KERNEL_PID, "SceProcessmgr", TAI_ANY_LIBRARY, 0xF388F05C,
-                                               &sceKernelKillProcessForKernel) < 1)
+                                               &sceKernelKillProcessForKernel) < 0)
                     {
                         LOG("Failed to find SceProcessmgr::sceKernelKillProcessForKernel, operation aborted");
                         return;

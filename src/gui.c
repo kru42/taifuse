@@ -149,19 +149,6 @@ void gui_cpy(void)
     if (!menu_is_active() && !console_is_active() && !hex_browser_is_active())
         return;
 
-    if (menu_is_active() && !console_is_active())
-    {
-        menu_draw();
-    }
-    else if (console_is_active())
-    {
-        console_draw();
-    }
-    else if (hex_browser_is_active())
-    {
-        hex_browser_draw();
-    }
-
     // Calculate scaled dimensions and offsets.
     int scaled_width  = (int)(GUI_WIDTH * g_gui_fb_w_ratio);
     int scaled_height = (int)(GUI_HEIGHT * g_gui_fb_h_ratio);

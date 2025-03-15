@@ -45,6 +45,8 @@ char   g_titleid[32];
 
 SceUID g_game_pid;
 
+static bool g_is_game_suspended = false;
+
 static int taifuse_thread(SceSize args, void* argp)
 {
     while (1)
@@ -62,7 +64,31 @@ static int taifuse_thread(SceSize args, void* argp)
             hex_browser_handle_input(kctrl.buttons);
         }
 
-        ksceKernelDelayThread(100 * 1000);
+        if (menu_is_active())
+        {
+            menu_draw();
+        }
+        else if (console_is_active())
+        {
+            console_draw();
+        }
+        else if (hex_browser_is_active())
+        {
+            hex_browser_draw();
+        }
+
+        // if (!g_is_game_suspended && (menu_is_active() || console_is_active() || hex_browser_is_active()))
+        // {
+        //     ksceKernelSuspendProcess(g_game_pid, 0x10);
+        //     g_is_game_suspended = true;
+        // }
+        // else if (g_is_game_suspended && (!menu_is_active() && !console_is_active() && !hex_browser_is_active()))
+        // {
+        //     ksceKernelResumeProcess(g_game_pid);
+        //     g_is_game_suspended = false;
+        // }
+
+        ksceKernelDelayThread(50 * 1000);
     }
 
     return 0;
@@ -96,8 +122,8 @@ int ksceDisplaySetFrameBufInternal_patched(int head, int index, const SceDisplay
     }
 
     gui_set_framebuf(pParam);
-
     gui_cpy();
+
     return TAI_CONTINUE(int, g_display_fb_hook_ref, head, index, pParam, sync);
 }
 
@@ -121,6 +147,9 @@ int sceKernelStartPreloadingModulesForKernel_hook(SceUID pid, void* args)
 
     g_game_pid = pid;
     memcpy(g_titleid, titleid, MAX_TITLEID_LEN);
+
+    // TODO: redo cheats, and have patches instead of whatever cheats we have now,
+    // since they're patches, not really cheats
 
     // Reload the cheat file on every game load.
     // Reset our static cheat group count.
