@@ -61,14 +61,8 @@ void console_handle_input(SceCtrlButtons buttons)
     }
 }
 
-void console_log(const char* format, ...)
+void console_log(const char* buffer)
 {
-    char    buffer[CONSOLE_MAX_LINE_LENGTH];
-    va_list args;
-    va_start(args, format);
-    vsnprintf(buffer, sizeof(buffer), format, args);
-    va_end(args);
-
     // If we've reached our max, shift all lines up (discard the oldest).
     if (g_console_line_count >= CONSOLE_MAX_LINES)
     {
@@ -78,6 +72,7 @@ void console_log(const char* format, ...)
         }
         g_console_line_count = CONSOLE_MAX_LINES - 1;
     }
+
     // Add the new line.
     strncpy(g_console_lines[g_console_line_count], buffer, CONSOLE_MAX_LINE_LENGTH - 1);
     g_console_lines[g_console_line_count][CONSOLE_MAX_LINE_LENGTH - 1] = '\0';

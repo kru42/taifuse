@@ -10,4 +10,4 @@ taifuse:
     taifuse:
       syscall: true
       functions:
-        - kuConsolePrintf: 0xA82F85B2
+        - tf_console_print: 0xA82F85B2

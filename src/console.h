@@ -22,8 +22,8 @@ bool console_is_active(void);
 // Clears the console log.
 void console_clear(void);
 
-// Logs a formatted message to the console.
-void console_log(const char* format, ...);
+// Logs a message to the console
+void console_log(const char* buffer);
 
 void console_handle_input(SceCtrlButtons buttons);
 

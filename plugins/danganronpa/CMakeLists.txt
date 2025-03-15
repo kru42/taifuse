@@ -32,7 +32,6 @@ target_link_directories(danganronpa_plugin BEFORE PRIVATE ${CMAKE_SOURCE_DIR}/..
 target_link_libraries(danganronpa_plugin
   taifuse_stub
   taihen_stub
-  taihenModuleUtils_stub
   k
   gcc
   SceLibKernel_stub
@@ -41,12 +40,13 @@ target_link_libraries(danganronpa_plugin
   SceKernelModulemgr_stub
   SceNetCtl_stub
   SceSysmodule_stub
+  SceSysmem_stub
   SceKernelThreadMgr_stub
   SceIofilemgr_stub
   SceRtc_stub
   SceAppMgr_stub
   ScePower_stub
-  kubridge_stub  # Link kubridge here
+  kubridge_stub
 )
 
 vita_create_self(danganronpa_plugin.suprx danganronpa_plugin CONFIG exports.yml UNSAFE)

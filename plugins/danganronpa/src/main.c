@@ -1,10 +1,10 @@
-#include <vitasdk.h>
-#include <taihen.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-
-#include <taifuse.h>
+#include <psp2/types.h>
+#include <psp2/kernel/modulemgr.h>
+#include <taihen.h>
+#include "common.h"
 
 tai_hook_ref_t gxt_hook_ref;
 
@@ -16,25 +16,22 @@ int get_dr_module(tai_module_info_t* pt_module_info)
 
 int loads_logo_gxt_hook(const char* a1, void* args)
 {
-    printf("loads_logo_gxt_hook: hello, called with \"%s\"...\n", a1);
+    // kuConsolePrintf("loads_logo_gxt_hook: hello, called with \"%s\"...\n", a1);
     return TAI_CONTINUE(int, gxt_hook_ref, a1, args);
 }
 
-void _start() __attribute__((weak, alias("module_start")));
-int  module_start(SceSize argc, const void* args)
+void* start() __attribute__((weak, alias("module_start")));
+
+int module_start(SceSize argc, const void* args)
 {
     printf("======= module_start =======\n");
-    printf("pls dont crash");
+    printf("plsssssssssss dont crash\n");
 
     uint32_t func_addr = 0x810A9A96;
 
-    if (kuConsolePrintf == NULL)
-    {
-        printf("kuConsolePrintf is NULL!\n");
-        return SCE_KERNEL_START_SUCCESS;
-    }
-
-    kuConsolePrintf("hello hello uwu, hooking function at 0x%08x...", func_addr);
+    char buffer[60];
+    snprintf(buffer, sizeof(buffer), "hello hello uwu, hooking function at 0x%08x...", func_addr);
+    tf_console_print(buffer);
 
     tai_module_info_t pt_module_info;
     int               res = get_dr_module(&pt_module_info);
