@@ -18,10 +18,14 @@ extern char           g_titleid[32];
 extern rgba_t         g_color_text;
 extern cheat_group_t* g_cheat_groups;
 extern size_t         g_cheat_group_count;
+extern bool           ui_needs_redraw;
 
 // Menu-specific internal state.
 static bool g_menu_active     = false;
 static int  g_selected_option = 0;
+
+// Define this variable as it's referenced externally
+bool g_last_menu_active = false;
 
 // Toggle the menu's active state.
 void menu_toggle(void)
@@ -35,18 +39,18 @@ bool menu_is_active(void)
     return g_menu_active;
 }
 
-// Process input for menu navigation and actions.
-// This function both handles the toggle combo (UP + LTRIGGER + RTRIGGER)
-// and menu-specific button presses.
 void menu_handle_input(SceCtrlButtons buttons)
 {
     static bool combo_pressed = false;
+    g_last_menu_active        = g_menu_active;
+    int old_selected_option   = g_selected_option;
+
     // Check for the toggle combo.
     bool toggle_pressed = (buttons & SCE_CTRL_LTRIGGER) && (buttons & SCE_CTRL_RTRIGGER) && (buttons & SCE_CTRL_UP);
 
     if (toggle_pressed && !combo_pressed)
     {
-        menu_toggle();
+        menu_toggle(); // toggles g_menu_active
         combo_pressed = true;
     }
     else if (!toggle_pressed && combo_pressed)
@@ -55,11 +59,9 @@ void menu_handle_input(SceCtrlButtons buttons)
     }
 
     // If the menu is active and we're in a game, show the cheat menu
-    if (g_menu_active)
+    if (g_menu_active && g_game_pid != NULL)
     {
-        // Simple navigation: adjust selected option based on input.
-        // (Assuming SCE_CTRL_UP/DOWN represent new presses for simplicity.
-        //  In a more robust design, you might want to debounce or track previous state.)
+        // Simple navigation
         if (buttons & SCE_CTRL_UP)
         {
             g_selected_option--;
@@ -76,7 +78,7 @@ void menu_handle_input(SceCtrlButtons buttons)
             g_selected_option = 0;
 
         // Process confirmation
-        if (buttons & SCE_CTRL_CIRCLE) // TODO: Use the correct confirm button
+        if (buttons & SCE_CTRL_CIRCLE)
         {
             if (g_selected_option == 0)
             {
@@ -99,7 +101,6 @@ void menu_handle_input(SceCtrlButtons buttons)
                         return;
                     }
                 }
-
                 sceKernelKillProcessForKernel(g_game_pid, 0x2);
             }
             else if (g_selected_option == 2)
@@ -109,14 +110,46 @@ void menu_handle_input(SceCtrlButtons buttons)
             }
         }
     }
+    else if (g_menu_active && g_game_pid == NULL)
+    {
+        // Simple navigation
+        if (buttons & SCE_CTRL_UP)
+        {
+            g_selected_option--;
+        }
+        if (buttons & SCE_CTRL_DOWN)
+        {
+            g_selected_option++;
+        }
+
+        const int option_count = 2;
+        if (g_selected_option < 0)
+            g_selected_option = option_count - 1;
+        else if (g_selected_option >= option_count)
+            g_selected_option = 0;
+
+        // Process confirmation
+        if (buttons & SCE_CTRL_CIRCLE)
+        {
+            // Handle only one option, "Soft Reboot"
+            if (g_selected_option == 0)
+            {
+                // Soft reboot
+                kscePowerRequestSoftReset();
+            }
+            else if (g_selected_option == 1)
+            {
+                // Unimplemented
+            }
+        }
+    }
 }
 
-void menu_draw(void)
+// Draw the static parts of the menu (template)
+void menu_draw_template(void)
 {
     if (!menu_is_active())
         return;
-
-    gui_clear();
 
     // Save the original text color.
     rgba_t original_color = g_color_text;
@@ -126,6 +159,19 @@ void menu_draw(void)
     g_color_text.rgba.g = 255;
     g_color_text.rgba.b = 255;
     gui_print(50, 30, "Taifuse Menu");
+
+    // Restore original color in case it's used elsewhere.
+    g_color_text = original_color;
+}
+
+// Draw the dynamic parts of the menu that change with user interaction
+void menu_draw_dynamic(void)
+{
+    if (!menu_is_active())
+        return;
+
+    // Save the original text color.
+    rgba_t original_color = g_color_text;
 
     if (g_game_pid != 0)
     {
@@ -137,25 +183,53 @@ void menu_draw(void)
 
         for (int i = 0; i < option_count; i++)
         {
+            char option_text[64];
             if (i == g_selected_option)
             {
-                // Red highlight for selected option.
                 g_color_text.rgba.r = 255;
                 g_color_text.rgba.g = 0;
                 g_color_text.rgba.b = 0;
 
-                // Add cursor indicator for selected option
-                gui_print(45, 60 + i * 30, ">");
+                snprintf(option_text, sizeof(option_text), "> %s", options[i]);
             }
             else
             {
-                // White for non-selected options.
                 g_color_text.rgba.r = 255;
                 g_color_text.rgba.g = 255;
                 g_color_text.rgba.b = 255;
+
+                snprintf(option_text, sizeof(option_text), "  %s", options[i]);
             }
 
-            gui_print(60, 60 + i * 30, options[i]);
+            gui_print(60, 60 + i * 30, option_text);
+        }
+    }
+    else if (g_game_pid == 0)
+    {
+        const char* options[]    = {"Soft reboot", "Cold reboot (unimplemented)"};
+        const int   option_count = sizeof(options) / sizeof(options[0]);
+
+        for (int i = 0; i < option_count; i++)
+        {
+            char option_text[64];
+            if (i == g_selected_option)
+            {
+                g_color_text.rgba.r = 255;
+                g_color_text.rgba.g = 0;
+                g_color_text.rgba.b = 0;
+
+                snprintf(option_text, sizeof(option_text), "> %s", options[i]);
+            }
+            else
+            {
+                g_color_text.rgba.r = 255;
+                g_color_text.rgba.g = 255;
+                g_color_text.rgba.b = 255;
+
+                snprintf(option_text, sizeof(option_text), "  %s", options[i]);
+            }
+
+            gui_print(60, 60 + i * 30, option_text);
         }
     }
     else

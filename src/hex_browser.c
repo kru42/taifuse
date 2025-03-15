@@ -16,6 +16,7 @@ extern rgba_t               g_color_bg;
 extern const unsigned char* g_gui_font;
 extern unsigned char        g_gui_font_width;
 extern unsigned char        g_gui_font_height;
+extern bool                 ui_needs_redraw;
 
 // Function to convert ASCII hex char to value
 static inline int hex_char_to_int(char c)
@@ -117,45 +118,38 @@ bool hex_browser_is_active(void)
     return hex_browser_active;
 }
 
-// Process input for hex browser
 void hex_browser_handle_input(SceCtrlButtons buttons)
 {
     static bool combo_pressed = false;
-    // Check if the toggle combo is pressed.
     bool toggle_pressed = (buttons & SCE_CTRL_LTRIGGER) && (buttons & SCE_CTRL_RTRIGGER) && (buttons & SCE_CTRL_DOWN);
+
     if (toggle_pressed && !combo_pressed)
     {
         hex_browser_toggle();
-        combo_pressed = true;
+        combo_pressed   = true;
     }
     else if (!toggle_pressed && combo_pressed)
     {
         combo_pressed = false;
     }
 
-    // Calculate newly pressed buttons
     unsigned int button_pressed = buttons;
 
-    // Special cases for all modes
     if (button_pressed & SCE_CTRL_SELECT)
     {
-        // Toggle between navigation and address edit modes
         if (current_mode == HEX_MODE_NAVIGATION)
         {
             current_mode = HEX_MODE_EDIT_ADDR;
-            // Initialize address input with current address
             snprintf(address_input, sizeof(address_input), "%08lX", current_address);
             address_input_pos = 0;
         }
         else
         {
-            // Return to navigation from any edit mode
             current_mode = HEX_MODE_NAVIGATION;
         }
         return;
     }
 
-    // Handle input based on current mode
     switch (current_mode)
     {
     case HEX_MODE_NAVIGATION:
@@ -168,6 +162,8 @@ void hex_browser_handle_input(SceCtrlButtons buttons)
         handle_value_input(buttons, button_pressed);
         break;
     }
+
+    ui_needs_redraw = true; // Any interaction with the hex browser should trigger a redraw
 }
 
 // Draw the hex browser UI
@@ -175,8 +171,6 @@ void hex_browser_draw(void)
 {
     if (!hex_browser_active)
         return;
-
-    gui_clear();
 
     // Update memory content if needed
     read_game_memory();

@@ -32,6 +32,12 @@ float                g_gui_font_scale  = 1.0f;
 rgba_t g_color_text = {.rgba = {255, 255, 255, 255}};
 rgba_t g_color_bg   = {.rgba = {0, 0, 0, 255}};
 
+bool g_ui_state_changed = false;
+
+extern bool g_last_menu_active;
+extern bool g_last_console_active;
+extern bool g_last_menu_active;
+
 //--------------------------------------------------------------------
 // Initialization / deinitialization
 //--------------------------------------------------------------------
@@ -140,30 +146,109 @@ void gui_printf(int x, int y, const char* format, ...)
     gui_print(x, y, buffer);
 }
 
+// Check if UI state changed
+bool gui_state_changed()
+{
+    bool current_menu_active        = menu_is_active();
+    bool current_console_active     = console_is_active();
+    bool current_hex_browser_active = hex_browser_is_active();
+
+    bool changed =
+        (current_menu_active != g_last_menu_active) ||
+        (current_console_active != g_last_console_active); // ||
+                                                           //(current_hex_browser_active != g_last_hex_browser_active);
+
+    g_last_menu_active    = current_menu_active;
+    g_last_console_active = current_console_active;
+    // g_last_hex_browser_active = current_hex_browser_active;
+
+    return changed;
+}
+
+// Check if framebuffer resolution changed
+bool gui_fb_res_changed()
+{
+    static int last_width  = 0;
+    static int last_height = 0;
+
+    bool changed = (g_gui_fb.width != last_width) || (g_gui_fb.height != last_height);
+
+    last_width  = g_gui_fb.width;
+    last_height = g_gui_fb.height;
+
+    return changed;
+}
+
+// Inline integer square root (using bit shifting)
+static inline int isqrt(int num)
+{
+    int res = 0;
+    int bit = 1 << 30; // The second-to-top bit set
+
+    // "bit" starts at the highest power of four <= num
+    while (bit > num)
+        bit >>= 2;
+
+    while (bit != 0)
+    {
+        if (num >= res + bit)
+        {
+            num -= res + bit;
+            res = (res >> 1) + bit;
+        }
+        else
+        {
+            res >>= 1;
+        }
+        bit >>= 2;
+    }
+    return res;
+}
+
 void gui_cpy(void)
 {
-    if (!menu_is_active() && !console_is_active() && !hex_browser_is_active())
-        return;
-
     int scaled_width  = (int)(GUI_WIDTH * g_gui_fb_w_ratio);
     int scaled_height = (int)(GUI_HEIGHT * g_gui_fb_h_ratio);
     int x_offset      = (g_gui_fb.width - scaled_width) / 2;
     int y_offset      = (g_gui_fb.height - scaled_height) / 2;
 
+    // Define corners radius for rounded corners
+    const int corner_radius = 16; // Adjust as needed
+
     for (int line = 0; line < scaled_height; line++)
     {
-        int src_line_idx = (int)(line / g_gui_fb_h_ratio); // Correctly map to source
+        int src_line_idx = (int)(line / g_gui_fb_h_ratio);
         if (src_line_idx >= GUI_HEIGHT)
-            break; // Prevent overshooting
+            break;
 
         int fb_line = y_offset + line;
         if (fb_line >= g_gui_fb.height)
             break;
 
-        rgba_t* src_line    = &g_gui_buffer[src_line_idx * GUI_WIDTH];
-        int     dest_offset = fb_line * g_gui_fb.pitch + x_offset;
+        int xd = 0;
+        if (src_line_idx < corner_radius)
+        {
+            // Top corners
+            int delta    = corner_radius - src_line_idx;
+            int sqrt_val = isqrt(corner_radius * corner_radius - delta * delta);
+            xd           = corner_radius - sqrt_val;
+        }
+        else if (src_line_idx >= GUI_HEIGHT - corner_radius)
+        {
+            // Bottom corners
+            int bottom_distance = GUI_HEIGHT - src_line_idx - 1;
+            int delta           = corner_radius - bottom_distance;
+            int sqrt_val        = isqrt(corner_radius * corner_radius - delta * delta);
+            xd                  = corner_radius - sqrt_val;
+        }
 
-        ksceKernelMemcpyKernelToUser((uintptr_t)&((rgba_t*)g_gui_fb.base)[dest_offset], src_line,
-                                     sizeof(rgba_t) * scaled_width);
+        // Scale the corner inset
+        int scaled_xd = (int)(xd * g_gui_fb_w_ratio);
+
+        int off   = fb_line * g_gui_fb.pitch + x_offset + scaled_xd;
+        int width = scaled_width - (scaled_xd * 2);
+
+        ksceKernelMemcpyKernelToUser((uintptr_t)&((rgba_t*)g_gui_fb.base)[off],
+                                     &g_gui_buffer[src_line_idx * GUI_WIDTH + xd], sizeof(rgba_t) * width);
     }
 }

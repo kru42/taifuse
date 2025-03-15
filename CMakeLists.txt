@@ -42,6 +42,7 @@ target_link_libraries(taifuse
   SceDisplayForDriver_stub
   SceProcessmgrForDriver_stub
   SceProcessmgrForKernel_stub
+  ScePowerForDriver_stub
 )
 
 vita_create_self(taifuse.skprx taifuse CONFIG exports.yml UNSAFE)

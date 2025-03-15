@@ -27,6 +27,8 @@ extern int module_get_export_func(SceUID pid, const char* modname, uint32_t libn
 extern int module_get_import_func(SceUID pid, const char* modname, uint32_t target_libnid, uint32_t funcnid,
                                   uintptr_t* stub);
 
+extern bool g_ui_state_changed;
+
 typedef SceUID (*sceKernelGetProcessTitleId_t)(SceUID pid, char* titleid, int size);
 typedef SceUID (*sceKernelUnloadProcessModulesForKernel_t)(SceUID pid);
 
@@ -46,6 +48,7 @@ char   g_titleid[32];
 SceUID g_game_pid;
 
 static bool g_is_game_suspended = false;
+bool        ui_needs_redraw     = true;
 
 static int taifuse_thread(SceSize args, void* argp)
 {
@@ -58,45 +61,71 @@ static int taifuse_thread(SceSize args, void* argp)
             ret = ksceCtrlPeekBufferPositive(1, &kctrl, 1);
         if (ret > 0)
         {
-            // TODO: Prevent having both overlays on screen
+            // Handle input
             menu_handle_input(kctrl.buttons);
             console_handle_input(kctrl.buttons);
-            hex_browser_handle_input(kctrl.buttons);
+            // hex_browser_handle_input(kctrl.buttons);
         }
 
+        // Check if UI state or FB resolution changed
+        bool state_changed = gui_state_changed();
+        bool res_changed   = gui_fb_res_changed();
+
+        if (state_changed || res_changed)
+        {
+            g_ui_state_changed = true;
+        }
+
+        // Draw templates on state/res change
+        if (g_ui_state_changed)
+        {
+            static int n_clears = 0;
+            char       buffer[256];
+            snprintf(buffer, 256, "state changed %d", n_clears);
+            console_log(buffer);
+            n_clears++;
+
+            gui_clear();
+            if (menu_is_active())
+            {
+                // Draw the static template parts of menu
+                menu_draw_template();
+            }
+            else if (console_is_active())
+            {
+                // Draw the static template parts of console
+                console_draw_template();
+            }
+            // else if (hex_browser_is_active())
+            // {
+            //     // Draw the static template parts of hex browser
+            //     hex_browser_draw_template();
+            // }
+            g_ui_state_changed = false;
+        }
+
+        // Draw dynamic content
         if (menu_is_active())
         {
-            menu_draw();
+            menu_draw_dynamic(); // Only draw changing parts
         }
         else if (console_is_active())
         {
-            console_draw();
+            console_draw_dynamic(); // Only draw changing parts
         }
-        else if (hex_browser_is_active())
-        {
-            hex_browser_draw();
-        }
-
-        // if (!g_is_game_suspended && (menu_is_active() || console_is_active() || hex_browser_is_active()))
+        // else if (hex_browser_is_active())
         // {
-        //     ksceKernelSuspendProcess(g_game_pid, 0x10);
-        //     g_is_game_suspended = true;
-        // }
-        // else if (g_is_game_suspended && (!menu_is_active() && !console_is_active() && !hex_browser_is_active()))
-        // {
-        //     ksceKernelResumeProcess(g_game_pid);
-        //     g_is_game_suspended = false;
+        //     hex_browser_draw_dynamic(); // Only draw changing parts
         // }
 
-        ksceKernelDelayThread(50 * 1000);
+        ksceKernelDelayThread(100 * 1000);
     }
-
     return 0;
 }
 
 static void taifuse_input_check(SceCtrlData* pad_data, int count)
 {
-    if (menu_is_active() || console_is_active())
+    if (menu_is_active() || console_is_active()) // || hex_browser_is_active())
     {
         SceCtrlData kctrl;
         kctrl.buttons = 0;
@@ -117,13 +146,17 @@ DECL_FUNC_HOOK_PATCH_CTRL(7, sceCtrlReadBufferPositive2)
 int ksceDisplaySetFrameBufInternal_patched(int head, int index, const SceDisplayFrameBuf* pParam, int sync)
 {
     if (head == 0 || pParam == NULL)
-    {
-        return TAI_CONTINUE(int, g_display_fb_hook_ref, head, index, pParam, sync);
-    }
+        goto DISPLAY_HOOK_RET;
 
     gui_set_framebuf(pParam);
-    gui_cpy();
 
+    // Only copy if any UI is active
+    if (menu_is_active() || console_is_active()) // || hex_browser_is_active())
+    {
+        gui_cpy();
+    }
+
+DISPLAY_HOOK_RET:
     return TAI_CONTINUE(int, g_display_fb_hook_ref, head, index, pParam, sync);
 }
 
