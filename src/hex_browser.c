@@ -18,6 +18,41 @@ extern unsigned char        g_gui_font_width;
 extern unsigned char        g_gui_font_height;
 
 //------------------------------------------------------------
+// Layout and display constants
+//------------------------------------------------------------
+#define HEX_BROWSER_X_START     24
+#define HEX_BROWSER_Y_START     24
+#define HEX_TITLE_Y_OFFSET      0
+#define HEX_MODE_X_OFFSET       376 // X position for mode indicator
+#define HEX_ADDR_Y_OFFSET       30  // Y offset for address display
+#define HEX_HEADER_Y_OFFSET     50  // Y offset for column headers
+#define HEX_DATA_Y_OFFSET       100 // Y offset for memory data display
+#define HEX_GOTO_X_OFFSET       75  // X offset for goto address input
+#define HEX_COLUMN_HEADER_LINE  70  // Y offset for column header line
+#define HEX_STATUS_BAR_Y_OFFSET 430 // Y offset for status bar
+#define HEX_STATUS_BAR_X_OFFSET 50  // X offset for status bar text
+#define HEX_STATUS_BAR_Y        460 // Absolute Y position for status bar
+
+// Layout for hex values display
+#define HEX_ADDR_COLUMN_WIDTH 120 // Width of address column
+#define HEX_BYTE_WIDTH        28  // Width for each byte display (including spacing)
+#define HEX_ASCII_X_OFFSET    530 // X position for ASCII section
+#define HEX_ASCII_SEPARATOR_X 530 // X position for separator before ASCII
+#define HEX_ASCII_START_X     540 // X position for ASCII characters
+
+// Row and content configuration
+#define HEX_ROW_HEIGHT     20 // Height of each memory row
+#define HEX_ROWS_PER_PAGE  16 // Number of rows displayed per page
+#define HEX_BYTES_PER_ROW  16 // Number of bytes per row
+#define HEX_ADDR_INPUT_MAX 16 // Maximum input length for address
+
+// Colors
+#define COLOR_WHITE     {.rgba = {255, 255, 255, 255}} // White color for titles and text
+#define COLOR_ORANGE    {.rgba = {255, 128, 0, 255}}   // Orange highlight for cursor
+#define COLOR_LIGHTGRAY {.rgba = {200, 200, 200, 255}} // Light gray for ASCII
+#define COLOR_STATUSBAR {.rgba = {150, 150, 150, 255}} // Light gray for status bar
+
+//------------------------------------------------------------
 // Unchanged helpers & definitions
 //------------------------------------------------------------
 static inline int hex_char_to_int(char c)
@@ -84,8 +119,8 @@ void hex_browser_init(void)
 {
     hex_browser_active = false;
     current_mode       = HEX_MODE_NAVIGATION;
-    current_address    = 0x00000000;
-    cursor_address     = 0x00000000;
+    current_address    = 0x81000000; // eboot.bin base address
+    cursor_address     = 0x81000000;
     cursor_x           = 0;
     cursor_y           = 0;
     memset(address_input, 0, sizeof(address_input));
@@ -102,7 +137,6 @@ void hex_browser_toggle(void)
     if (hex_browser_active)
     {
         current_mode = HEX_MODE_NAVIGATION;
-        // read_game_memory();
     }
 }
 
@@ -177,15 +211,17 @@ static int read_game_memory(void)
 
 void hex_browser_draw_template(void)
 {
+    char text_buf[256];
+
     rgba_t original_color = g_color_text;
-    rgba_t title_color    = {.rgba = {255, 255, 255, 255}}; // White color for titles
+    rgba_t title_color    = COLOR_WHITE; // Use the defined color constant
 
     // Save original color and set to title color
     g_color_text = title_color;
 
     // Title and PID - make sure these are visible with proper spacing
-    gui_print(50, 30, "Memory Browser - PID:");
-    gui_printf(230, 30, "%08X", g_game_pid);
+    snprintf(text_buf, sizeof(text_buf), "Memory Browser - PID: %08x", g_game_pid);
+    gui_print(HEX_BROWSER_X_START, HEX_BROWSER_Y_START, text_buf);
 
     // Mode indicator with clear spacing
     const char* mode_str = "NAVIGATION";
@@ -193,20 +229,49 @@ void hex_browser_draw_template(void)
         mode_str = "EDIT ADDRESS";
     else if (current_mode == HEX_MODE_EDIT_VALUE)
         mode_str = "EDIT VALUE";
-    gui_print(400, 30, mode_str);
+    gui_print(HEX_MODE_X_OFFSET, HEX_BROWSER_Y_START, mode_str);
 
     // Address display (when not editing address)
     if (current_mode != HEX_MODE_EDIT_ADDR)
     {
-        gui_print(50, 60, "Address:");
-        gui_printf(120, 60, "0x%08lX", current_address & ~0xF);
+        gui_printf(HEX_BROWSER_X_START, HEX_BROWSER_Y_START + HEX_ADDR_Y_OFFSET, "Address: 0x%08lX",
+                   current_address & ~0xF);
     }
 
     // Column headers for hex view with proper spacing
-    int y_pos = 90;
-    gui_print(50, y_pos, "Address    |  0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F  | ASCII");
+    int y_pos = HEX_BROWSER_Y_START + HEX_HEADER_Y_OFFSET;
+
+    // Address column
+    gui_print(HEX_BROWSER_X_START, y_pos, "Address");
+
+    // Separator
+    gui_print(HEX_BROWSER_X_START + HEX_ADDR_COLUMN_WIDTH - 10, y_pos, "|");
+
+    // Hex bytes header
+    int hex_start_x = HEX_BROWSER_X_START + HEX_ADDR_COLUMN_WIDTH;
+    for (int i = 0; i < HEX_BYTES_PER_ROW; i++)
+    {
+        gui_printf(hex_start_x + i * HEX_BYTE_WIDTH, y_pos, "%X", i);
+    }
+
+    // ASCII separator and header
+    gui_print(HEX_ASCII_SEPARATOR_X, y_pos, "| ASCII");
+
+    // Separator line
     y_pos += 20;
-    gui_print(50, y_pos, "-----------|--------------------------------------------------|--------");
+    gui_print(HEX_BROWSER_X_START, y_pos, "-----------");
+    gui_print(HEX_BROWSER_X_START + HEX_ADDR_COLUMN_WIDTH - 10, y_pos, "|");
+
+    for (int i = 0; i < HEX_BYTES_PER_ROW * 3 - 2; i++)
+    {
+        gui_print(HEX_BROWSER_X_START + HEX_ADDR_COLUMN_WIDTH + i * 8, y_pos, "-");
+    }
+
+    gui_print(HEX_ASCII_SEPARATOR_X, y_pos, "|");
+    for (int i = 0; i < 16; i++)
+    {
+        gui_print(HEX_ASCII_START_X + i * g_gui_font_width, y_pos, "-");
+    }
 
     draw_status_bar();
 
@@ -216,13 +281,15 @@ void hex_browser_draw_template(void)
 
 void hex_browser_draw_dynamic(void)
 {
+    char text_buf[256];
+
     rgba_t original_color  = g_color_text;
-    rgba_t highlight_color = {.rgba = {255, 128, 0, 255}};   // Orange highlight for cursor
-    rgba_t normal_color    = {.rgba = {255, 255, 255, 255}}; // White for normal text
-    rgba_t ascii_color     = {.rgba = {200, 200, 200, 255}}; // Light gray for ASCII
+    rgba_t highlight_color = COLOR_ORANGE;    // Orange highlight for cursor
+    rgba_t normal_color    = COLOR_WHITE;     // White for normal text
+    rgba_t ascii_color     = COLOR_LIGHTGRAY; // Light gray for ASCII
 
     uintptr_t aligned_addr = current_address & ~0xF;
-    int       y_pos        = 130; // Starting Y position for dynamic memory view
+    int       y_pos        = HEX_BROWSER_Y_START + HEX_DATA_Y_OFFSET; // Starting Y position for dynamic memory view
 
     if (memory_needs_update)
     {
@@ -234,11 +301,12 @@ void hex_browser_draw_dynamic(void)
     if (current_mode == HEX_MODE_EDIT_ADDR)
     {
         g_color_text = normal_color;
-        gui_print(50, 60, "Go to:");
-        gui_print(120, 60, address_input);
+        gui_printf(HEX_BROWSER_X_START, HEX_BROWSER_Y_START + HEX_ADDR_Y_OFFSET, "Go to: %s", address_input);
+
         if ((ksceKernelGetSystemTimeWide() / 500000) % 2 == 0)
         {
-            gui_print(120 + address_input_pos * g_gui_font_width, 60, "_");
+            gui_print(HEX_BROWSER_X_START + HEX_GOTO_X_OFFSET + address_input_pos * g_gui_font_width,
+                      HEX_BROWSER_Y_START + HEX_ADDR_Y_OFFSET, "_");
         }
     }
 
@@ -247,15 +315,19 @@ void hex_browser_draw_dynamic(void)
     {
         // Set color for address column
         g_color_text = normal_color;
-        gui_printf(50, y_pos, "%08lX |", aligned_addr + row * HEX_BYTES_PER_ROW);
+        // Address column with proper alignment
+        gui_printf(HEX_BROWSER_X_START, y_pos, "%08lX", aligned_addr + row * HEX_BYTES_PER_ROW);
+
+        // Separator between address and hex values
+        gui_print(HEX_BROWSER_X_START + HEX_ADDR_COLUMN_WIDTH - 10, y_pos, "|");
 
         // Draw hex values
         for (int col = 0; col < HEX_BYTES_PER_ROW; col++)
         {
             int idx = row * HEX_BYTES_PER_ROW + col;
 
-            // Calculate correct position for each hex byte (3 characters: 2 hex + 1 space)
-            int x_pos = 145 + col * 24;
+            // Calculate correct position for each hex byte
+            int x_pos = HEX_BROWSER_X_START + HEX_ADDR_COLUMN_WIDTH + col * HEX_BYTE_WIDTH;
 
             // Highlight cursor position in navigation or value edit modes
             if ((current_mode == HEX_MODE_NAVIGATION || current_mode == HEX_MODE_EDIT_VALUE) && row == cursor_y &&
@@ -283,9 +355,11 @@ void hex_browser_draw_dynamic(void)
             }
         }
 
-        // Draw ASCII representation for the row
+        // Draw separator before ASCII representation
         g_color_text = normal_color;
-        gui_print(530, y_pos, "|");
+        gui_print(HEX_ASCII_SEPARATOR_X, y_pos, "|");
+
+        // Draw ASCII representation for the row
         g_color_text = ascii_color;
 
         for (int col = 0; col < HEX_BYTES_PER_ROW; col++)
@@ -294,7 +368,7 @@ void hex_browser_draw_dynamic(void)
             char c   = memory_buffer[idx];
 
             // Calculate correct position for each ASCII character
-            int x_pos = 540 + col * g_gui_font_width;
+            int x_pos = HEX_ASCII_START_X + col * g_gui_font_width;
 
             if (c >= 32 && c <= 126)
             {
@@ -307,32 +381,33 @@ void hex_browser_draw_dynamic(void)
             }
         }
 
-        y_pos += 20; // Move to next row
+        y_pos += HEX_ROW_HEIGHT;
     }
 
     // Restore original color
     g_color_text = original_color;
 }
 
+// Status bar drawing function
 static void draw_status_bar(void)
 {
     rgba_t original_color = g_color_text;
-    rgba_t status_color   = {.rgba = {150, 150, 150, 255}}; // Light gray for status bar
+    rgba_t status_color   = COLOR_STATUSBAR; // Light gray for status bar
 
     g_color_text = status_color;
 
-    int y_pos = 460;
     if (current_mode == HEX_MODE_NAVIGATION)
     {
-        gui_print(50, y_pos, "D-Pad: Navigate | L/R: Page | Triangle: Exit | Select: Address | Circle: Edit Value");
+        gui_print(HEX_STATUS_BAR_X_OFFSET, HEX_STATUS_BAR_Y,
+                  "D-Pad: Navigate | L/R: Page | Triangle: Exit | Select: Address | Circle: Edit Value");
     }
     else if (current_mode == HEX_MODE_EDIT_ADDR)
     {
-        gui_print(50, y_pos, "D-Pad: Input | Cross: Confirm | Select/Triangle: Cancel");
+        gui_print(HEX_STATUS_BAR_X_OFFSET, HEX_STATUS_BAR_Y, "D-Pad: Input | Cross: Confirm | Select/Triangle: Cancel");
     }
     else if (current_mode == HEX_MODE_EDIT_VALUE)
     {
-        gui_print(50, y_pos, "D-Pad: Input | Cross: Confirm | Select/Triangle: Cancel");
+        gui_print(HEX_STATUS_BAR_X_OFFSET, HEX_STATUS_BAR_Y, "D-Pad: Input | Cross: Confirm | Select/Triangle: Cancel");
     }
 
     // Restore original color

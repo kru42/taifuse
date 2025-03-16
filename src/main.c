@@ -175,7 +175,7 @@ DISPLAY_HOOK_RET:
 int sceKernelStartPreloadingModulesForKernel_hook(SceUID pid, void* args)
 {
     char titleid[32] = {0};
-    sceKernelSysrootGetProcessTitleIdForKernel(pid, titleid, sizeof(titleid));
+    ksceKernelSysrootGetProcessTitleId(pid, &titleid, sizeof(titleid));
 
     int result = TAI_CONTINUE(int, game_load_hook_ref, pid, args);
     if (result < 0)
@@ -252,12 +252,12 @@ int  module_start(SceSize argc, const void* args)
         return SCE_KERNEL_STOP_SUCCESS;
     }
 
-    if (module_get_export_func(KERNEL_PID, "SceSysmem", TAI_ANY_LIBRARY, 0xEC3124A3,
-                               &sceKernelSysrootGetProcessTitleIdForKernel) < 0)
-    {
-        LOG("failed to find sceKernelSysrootGetProcessTitleIdForKernel export in SceSysmem, aborted");
-        return SCE_KERNEL_STOP_SUCCESS;
-    }
+    // if (module_get_export_func(KERNEL_PID, "SceSysmem", TAI_ANY_LIBRARY, 0xEC3124A3,
+    //                            &sceKernelSysrootGetProcessTitleIdForKernel) < 0)
+    // {
+    //     LOG("failed to find sceKernelSysrootGetProcessTitleIdForKernel export in SceSysmem, aborted");
+    //     return SCE_KERNEL_STOP_SUCCESS;
+    // }
 
     // Hook app/game modules preloading function
     SceUID res =

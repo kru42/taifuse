@@ -29,8 +29,9 @@ unsigned char        g_gui_font_height = GUI_FONT_H;
 float                g_gui_font_scale  = 1.0f;
 
 // Colors for rendering
-rgba_t g_color_text = {.rgba = {255, 255, 255, 255}};
-rgba_t g_color_bg   = {.rgba = {0, 0, 0, 255}};
+rgba_t g_color_text      = {.rgba = {255, 255, 255, 255}};
+rgba_t g_color_bg        = {.rgba = {0, 0, 128, 255}};
+rgba_t g_color_highlight = {.rgba = {0, 255, 255, 255}};
 
 bool g_ui_state_changed = false;
 
@@ -87,17 +88,17 @@ static void draw_char(char c, int x, int y)
     // Fast path for space.
     if (c == ' ')
     {
-        // for (int yy = 0; yy < (int)(g_gui_font_height * g_gui_font_scale); yy++)
-        // {
-        //     if (y + yy >= GUI_HEIGHT)
-        //         break;
-        //     for (int xx = 0; xx < (int)(g_gui_font_width * g_gui_font_scale); xx++)
-        //     {
-        //         if (x + xx >= GUI_WIDTH)
-        //             break;
-        //         g_gui_buffer[(y + yy) * GUI_WIDTH + (x + xx)] = g_color_bg;
-        //     }
-        // }
+        for (int yy = 0; yy < (int)(g_gui_font_height * g_gui_font_scale); yy++)
+        {
+            if (y + yy >= GUI_HEIGHT)
+                break;
+            for (int xx = 0; xx < (int)(g_gui_font_width * g_gui_font_scale); xx++)
+            {
+                if (x + xx >= GUI_WIDTH)
+                    break;
+                g_gui_buffer[(y + yy) * GUI_WIDTH + (x + xx)] = g_color_bg;
+            }
+        }
         return;
     }
 
@@ -205,14 +206,16 @@ static inline int isqrt(int num)
 
 void gui_cpy(void)
 {
-    const int margin = 10;
+    // const int margin = 10;
+    const int margin = 0;
 
     int scaled_width  = (int)(GUI_WIDTH * g_gui_fb_w_ratio) - (2 * margin);
     int scaled_height = (int)(GUI_HEIGHT * g_gui_fb_h_ratio) - (2 * margin);
     int x_offset      = (g_gui_fb.width - scaled_width) / 2;
     int y_offset      = (g_gui_fb.height - scaled_height) / 2;
 
-    const int corner_radius    = 16;
+    // const int corner_radius    = 16;
+    const int corner_radius    = 0;
     const int corner_radius_sq = corner_radius * corner_radius;
 
     // Buffer for efficient copying
