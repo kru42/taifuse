@@ -36,9 +36,9 @@ extern unsigned char        g_gui_font_height;
 // Layout for hex values display
 #define HEX_ADDR_COLUMN_WIDTH 120 // Width of address column
 #define HEX_BYTE_WIDTH        28  // Width for each byte display (including spacing)
-#define HEX_ASCII_X_OFFSET    530 // X position for ASCII section
-#define HEX_ASCII_SEPARATOR_X 530 // X position for separator before ASCII
-#define HEX_ASCII_START_X     540 // X position for ASCII characters
+#define HEX_ASCII_X_OFFSET    630 // X position for ASCII section
+#define HEX_ASCII_SEPARATOR_X 630 // X position for separator before ASCII
+#define HEX_ASCII_START_X     640 // X position for ASCII characters
 
 // Row and content configuration
 #define HEX_ROW_HEIGHT     20 // Height of each memory row
@@ -51,6 +51,9 @@ extern unsigned char        g_gui_font_height;
 #define COLOR_ORANGE    {.rgba = {255, 128, 0, 255}}   // Orange highlight for cursor
 #define COLOR_LIGHTGRAY {.rgba = {200, 200, 200, 255}} // Light gray for ASCII
 #define COLOR_STATUSBAR {.rgba = {150, 150, 150, 255}} // Light gray for status bar
+
+static const rgba_t HB_HIGHLIGHT_COLOR  = {.rgba = {0xff, 0xa5, 0x00, 0xff}};
+static const rgba_t HB_GREYED_OUT_COLOR = {.rgba = {0xa0, 0xa0, 0xa0, 0xff}};
 
 //------------------------------------------------------------
 // Unchanged helpers & definitions
@@ -131,8 +134,9 @@ void hex_browser_init(void)
 
 void hex_browser_toggle(void)
 {
-    if (!g_game_pid)
-        return;
+    // // If we're not in a game, we don't toggle the browser
+    // if (!g_game_pid)
+    //     return;
     hex_browser_active = !hex_browser_active;
     if (hex_browser_active)
     {
@@ -197,16 +201,19 @@ static int read_game_memory(void)
 {
     if (!g_game_pid)
         return -1;
-    uintptr_t aligned_addr = current_address & ~0xF;
-    int       size         = HEX_ROWS_PER_PAGE * HEX_BYTES_PER_ROW;
-    int       ret          = ksceKernelMemcpyUserToKernel(memory_buffer, (uintptr_t)aligned_addr, size);
-    if (ret < 0)
-    {
-        LOG("Failed to read memory at 0x%08lX, error: 0x%08X", aligned_addr, ret);
-        memset(memory_buffer, 0xCC, size); // Error pattern
-        return ret;
-    }
-    return 0;
+
+    // just return 0xcc now
+    return 0xcc;
+    // uintptr_t aligned_addr = current_address & ~0xF;
+    // int       size         = HEX_ROWS_PER_PAGE * HEX_BYTES_PER_ROW;
+    // int       ret          = ksceKernelMemcpyUserToKernel(memory_buffer, (uintptr_t)aligned_addr, size);
+    // if (ret < 0)
+    // {
+    //     LOG("Failed to read memory at 0x%08lX, error: 0x%08X", aligned_addr, ret);
+    //     memset(memory_buffer, 0xCC, size); // Error pattern
+    //     return ret;
+    // }
+    // return 0;
 }
 
 void hex_browser_draw_template(void)
@@ -214,10 +221,9 @@ void hex_browser_draw_template(void)
     char text_buf[256];
 
     rgba_t original_color = g_color_text;
-    rgba_t title_color    = COLOR_WHITE; // Use the defined color constant
 
     // Save original color and set to title color
-    g_color_text = title_color;
+    g_color_text = DEFAULT_HIGHLIGHT_COLOR;
 
     // Title and PID - make sure these are visible with proper spacing
     snprintf(text_buf, sizeof(text_buf), "Memory Browser - PID: %08x", g_game_pid);
@@ -283,10 +289,7 @@ void hex_browser_draw_dynamic(void)
 {
     char text_buf[256];
 
-    rgba_t original_color  = g_color_text;
-    rgba_t highlight_color = COLOR_ORANGE;    // Orange highlight for cursor
-    rgba_t normal_color    = COLOR_WHITE;     // White for normal text
-    rgba_t ascii_color     = COLOR_LIGHTGRAY; // Light gray for ASCII
+    rgba_t original_color = g_color_text;
 
     uintptr_t aligned_addr = current_address & ~0xF;
     int       y_pos        = HEX_BROWSER_Y_START + HEX_DATA_Y_OFFSET; // Starting Y position for dynamic memory view
@@ -300,7 +303,7 @@ void hex_browser_draw_dynamic(void)
     // In address edit mode, show input field with blinking cursor.
     if (current_mode == HEX_MODE_EDIT_ADDR)
     {
-        g_color_text = normal_color;
+        g_color_text = DEFAULT_TEXT_COLOR;
         gui_printf(HEX_BROWSER_X_START, HEX_BROWSER_Y_START + HEX_ADDR_Y_OFFSET, "Go to: %s", address_input);
 
         if ((ksceKernelGetSystemTimeWide() / 500000) % 2 == 0)
@@ -314,7 +317,7 @@ void hex_browser_draw_dynamic(void)
     for (int row = 0; row < HEX_ROWS_PER_PAGE; row++)
     {
         // Set color for address column
-        g_color_text = normal_color;
+        g_color_text = DEFAULT_TEXT_COLOR;
         // Address column with proper alignment
         gui_printf(HEX_BROWSER_X_START, y_pos, "%08lX", aligned_addr + row * HEX_BYTES_PER_ROW);
 
@@ -333,7 +336,7 @@ void hex_browser_draw_dynamic(void)
             if ((current_mode == HEX_MODE_NAVIGATION || current_mode == HEX_MODE_EDIT_VALUE) && row == cursor_y &&
                 col == cursor_x)
             {
-                g_color_text = highlight_color;
+                g_color_text = DEFAULT_HIGHLIGHT_COLOR;
 
                 if (current_mode == HEX_MODE_EDIT_VALUE)
                 {
@@ -350,17 +353,17 @@ void hex_browser_draw_dynamic(void)
             }
             else
             {
-                g_color_text = normal_color;
+                g_color_text = DEFAULT_TEXT_COLOR;
                 gui_printf(x_pos, y_pos, "%02X", memory_buffer[idx]);
             }
         }
 
         // Draw separator before ASCII representation
-        g_color_text = normal_color;
+        g_color_text = DEFAULT_TEXT_COLOR;
         gui_print(HEX_ASCII_SEPARATOR_X, y_pos, "|");
 
         // Draw ASCII representation for the row
-        g_color_text = ascii_color;
+        g_color_text = HB_GREYED_OUT_COLOR;
 
         for (int col = 0; col < HEX_BYTES_PER_ROW; col++)
         {
@@ -392,9 +395,8 @@ void hex_browser_draw_dynamic(void)
 static void draw_status_bar(void)
 {
     rgba_t original_color = g_color_text;
-    rgba_t status_color   = COLOR_STATUSBAR; // Light gray for status bar
 
-    g_color_text = status_color;
+    g_color_text = HB_GREYED_OUT_COLOR;
 
     if (current_mode == HEX_MODE_NAVIGATION)
     {

@@ -4,17 +4,13 @@
 #include <vitasdkkern.h>
 #include <stdint.h>
 
-extern char g_titleid[32];
-
 // GUI dimensions (fixed internal resolution)
-// #define GUI_WIDTH  832
-// #define GUI_HEIGHT 470
 #define GUI_WIDTH  960
 #define GUI_HEIGHT 544
 
-// Font dimensions (using your provided font)
-#define GUI_FONT_W 12
-#define GUI_FONT_H 24
+// Font dimensions
+#define GUI_FONT_W 8
+#define GUI_FONT_H 8
 
 // RGBA color structure
 typedef union
@@ -28,6 +24,10 @@ typedef union
     } rgba;
     uint32_t uint32;
 } rgba_t;
+
+static const rgba_t DEFAULT_TEXT_COLOR      = {.rgba = {255, 255, 255, 255}};
+static const rgba_t DEFAULT_BG_COLOR        = {.rgba = {0, 0, 128, 255}};
+static const rgba_t DEFAULT_HIGHLIGHT_COLOR = {.rgba = {0, 255, 255, 255}};
 
 // Rendering API (rendering only; no overclocking, profiling, etc.)
 int  gui_init(void);

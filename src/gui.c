@@ -7,7 +7,7 @@
 #include "menu.h"
 #include "console.h"
 #include "hex_browser.h"
-#include "fonts/gui_font_ter-u24b.h"
+#include "font8x8/font8x8.h"
 
 // Global variables for our internal GUI buffer and display framebuffer.
 static SceDisplayFrameBuf g_gui_fb = {
@@ -22,16 +22,15 @@ static float g_gui_fb_h_ratio = 1.0f;
 static rgba_t* g_gui_buffer;
 static SceUID  g_gui_buffer_uid = -1;
 
-// Font parameters (using your supplied 12x24 font)
-const unsigned char* g_gui_font        = FONT_TER_U24B;
+// Font parameters
+const unsigned char* g_gui_font        = font8x8_basic;
 unsigned char        g_gui_font_width  = GUI_FONT_W;
 unsigned char        g_gui_font_height = GUI_FONT_H;
 float                g_gui_font_scale  = 1.0f;
 
 // Colors for rendering
-rgba_t g_color_text      = {.rgba = {255, 255, 255, 255}};
-rgba_t g_color_bg        = {.rgba = {0, 0, 128, 255}};
-rgba_t g_color_highlight = {.rgba = {0, 255, 255, 255}};
+rgba_t g_color_text = {.rgba = {255, 255, 255, 255}};
+rgba_t g_color_bg   = {.rgba = {0, 0, 128, 255}};
 
 bool g_ui_state_changed = false;
 
@@ -81,11 +80,19 @@ void gui_clear(void)
         g_gui_buffer[i] = g_color_bg;
 }
 
+unsigned char reverse_bits(unsigned char b)
+{
+    b = (b & 0xF0) >> 4 | (b & 0x0F) << 4;
+    b = (b & 0xCC) >> 2 | (b & 0x33) << 2;
+    b = (b & 0xAA) >> 1 | (b & 0x55) << 1;
+    return b;
+}
+
 // Draw a single character at (x,y) in the internal buffer.
-// Assumes the font bitmap is arranged as contiguous 12x24 blocks per ASCII character.
+// Assumes the font bitmap is arranged as contiguous 8.8 blocks per ASCII character.
 static void draw_char(char c, int x, int y)
 {
-    // Fast path for space.
+    // Fast path for space
     if (c == ' ')
     {
         for (int yy = 0; yy < (int)(g_gui_font_height * g_gui_font_scale); yy++)
@@ -102,25 +109,24 @@ static void draw_char(char c, int x, int y)
         return;
     }
 
-    // Calculate bytes per row in the font bitmap.
-    int bytes_per_row = (g_gui_font_width + 7) / 8;
-    // Compute the offset in the font bitmap for this character.
-    int char_offset = ((int)c) * g_gui_font_height * bytes_per_row;
+    // New font: fixed bytes per row = 1
+    int char_offset = (int)c; // Each char index maps directly to a row in font8x8_basic
 
-    for (int yy = 0; yy < (int)(g_gui_font_height * g_gui_font_scale); yy++)
+    // Loop through the scaled glyph rows/columns
+    for (int yy = 0; yy < (int)(GUI_FONT_H * g_gui_font_scale); yy++)
     {
         int font_y = yy / g_gui_font_scale;
         if (y + yy >= GUI_HEIGHT)
             break;
-        for (int xx = 0; xx < (int)(g_gui_font_width * g_gui_font_scale); xx++)
+        for (int xx = 0; xx < (int)(GUI_FONT_W * g_gui_font_scale); xx++)
         {
             int font_x = xx / g_gui_font_scale;
             if (x + xx >= GUI_WIDTH)
                 break;
-            int           byte_index                      = char_offset + font_y * bytes_per_row + (font_x / 8);
-            int           bit_index                       = 7 - (font_x % 8);
-            unsigned char byte                            = g_gui_font[byte_index];
-            bool          pixel_on                        = ((byte >> bit_index) & 0x1) != 0;
+            // Each row is one byte, so grab the byte directly, after reversing the bits:
+            unsigned char byte = reverse_bits(font8x8_basic[char_offset][font_y]);
+            // Bit 7 is the leftmost pixel.
+            bool pixel_on                                 = ((byte >> (7 - font_x)) & 0x1) != 0;
             g_gui_buffer[(y + yy) * GUI_WIDTH + (x + xx)] = pixel_on ? g_color_text : g_color_bg;
         }
     }
@@ -147,6 +153,7 @@ void gui_printf(int x, int y, const char* format, ...)
     gui_print(x, y, buffer);
 }
 
+// TODO: refactor, this shouldn't belong in this module but somewhere like tf_gui.c
 // Check if UI state changed
 bool gui_state_changed()
 {

@@ -10,7 +10,6 @@ static char g_console_lines[CONSOLE_MAX_LINES][CONSOLE_MAX_LINE_LENGTH];
 static int  g_console_line_count = 0;
 
 extern rgba_t g_color_text;
-extern bool   ui_needs_redraw;
 
 // Starting position on screen for the console.
 #define CONSOLE_START_X 15

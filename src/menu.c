@@ -6,6 +6,20 @@
 #include "cheats.h"
 #include "console.h"
 #include "log.h"
+#include "taifuse.h"
+
+// Constant definitions
+#define MENU_MARGIN 16 // margin of the whole menu
+
+#define OPTION_HEIGHT 16 // height of each option
+
+#define OPTIONS_TOP_MARGIN  42 // margin of the options list
+#define OPTIONS_LEFT_MARGIN 24 // margin of the options list
+
+#define TITLE_MARGIN 8 // margin of the title
+
+static const rgba_t TITLE_COLOR      = {.rgba = {0xff, 0xa5, 0x00, 0xff}};
+static const rgba_t GREYED_OUT_COLOR = {.rgba = {0xa0, 0xa0, 0xa0, 0xff}};
 
 extern int module_get_export_func(SceUID pid, const char* modname, uint32_t libnid, uint32_t funcnid, uintptr_t* func);
 
@@ -16,6 +30,7 @@ static sceKernelKillProcessForKernel_t sceKernelKillProcessForKernel;
 extern int            g_game_pid;
 extern char           g_titleid[32];
 extern rgba_t         g_color_text;
+extern rgba_t         g_color_highlight;
 extern cheat_group_t* g_cheat_groups;
 extern size_t         g_cheat_group_count;
 
@@ -50,8 +65,8 @@ void menu_handle_input(SceCtrlButtons buttons)
     static SceInt64 down_last_time = 0;
 
     // Delays in microseconds.
-    const SceInt64 initialDelay = 300 * 1000; // 300ms before auto-repeat starts.
-    const SceInt64 repeatDelay  = 150 * 1000; // 150ms between repeats.
+    const SceInt64 initialDelay = 600 * 1000; // 600ms before auto-repeat starts.
+    const SceInt64 repeatDelay  = 300 * 1000; // 300ms between repeats.
 
     SceInt64 currentTime = ksceKernelGetSystemTimeWide();
 
@@ -162,6 +177,10 @@ void menu_handle_input(SceCtrlButtons buttons)
                 {
                     kscePowerRequestColdReset();
                 }
+                else if (g_selected_option == 2)
+                {
+                    g_menu_active = false;
+                }
             }
         }
     }
@@ -177,10 +196,8 @@ void menu_draw_template(void)
     rgba_t original_color = g_color_text;
 
     // Ensure title is drawn in white.
-    g_color_text.rgba.r = 255;
-    g_color_text.rgba.g = 255;
-    g_color_text.rgba.b = 255;
-    gui_print(50, 30, "Taifuse menu");
+    g_color_text = TITLE_COLOR;
+    gui_print(MENU_MARGIN + TITLE_MARGIN, MENU_MARGIN + TITLE_MARGIN, TAIFUSE_VERSION_STRING);
 
     // Restore original color in case it's used elsewhere.
     g_color_text = original_color;
@@ -192,11 +209,9 @@ void menu_draw_dynamic(void)
     if (!menu_is_active())
         return;
 
-    // Save the original text color.
-    rgba_t original_color = g_color_text;
-
     if (g_game_pid != 0)
     {
+        // We're in a game
         char reload_option[64];
         snprintf(reload_option, sizeof(reload_option), "Reload cheats for %s", g_titleid);
 
@@ -208,27 +223,22 @@ void menu_draw_dynamic(void)
             char option_text[64];
             if (i == g_selected_option)
             {
-                g_color_text.rgba.r = 255;
-                g_color_text.rgba.g = 0;
-                g_color_text.rgba.b = 0;
-
+                g_color_text = DEFAULT_HIGHLIGHT_COLOR;
                 snprintf(option_text, sizeof(option_text), "> %s", options[i]);
             }
             else
             {
-                g_color_text.rgba.r = 255;
-                g_color_text.rgba.g = 255;
-                g_color_text.rgba.b = 255;
-
+                g_color_text = DEFAULT_TEXT_COLOR;
                 snprintf(option_text, sizeof(option_text), "  %s", options[i]);
             }
 
-            gui_print(60, 60 + i * 30, option_text);
+            gui_print(OPTIONS_LEFT_MARGIN, OPTIONS_TOP_MARGIN + i * OPTION_HEIGHT, option_text);
         }
     }
     else if (g_game_pid == 0)
     {
-        const char* options[]    = {"Soft reboot", "Cold reboot"};
+        // We're not in a game
+        const char* options[]    = {"Soft reboot", "Cold reboot", "Exit"};
         const int   option_count = sizeof(options) / sizeof(options[0]);
 
         for (int i = 0; i < option_count; i++)
@@ -236,32 +246,24 @@ void menu_draw_dynamic(void)
             char option_text[64];
             if (i == g_selected_option)
             {
-                g_color_text.rgba.r = 255;
-                g_color_text.rgba.g = 0;
-                g_color_text.rgba.b = 0;
-
+                g_color_text = DEFAULT_HIGHLIGHT_COLOR;
                 snprintf(option_text, sizeof(option_text), "> %s", options[i]);
             }
             else
             {
-                g_color_text.rgba.r = 255;
-                g_color_text.rgba.g = 255;
-                g_color_text.rgba.b = 255;
-
+                g_color_text = DEFAULT_TEXT_COLOR;
                 snprintf(option_text, sizeof(option_text), "  %s", options[i]);
             }
 
-            gui_print(60, 60 + i * 30, option_text);
+            gui_print(OPTIONS_LEFT_MARGIN, OPTIONS_TOP_MARGIN + i * OPTION_HEIGHT, option_text);
         }
-    }
-    else
-    {
-        // We're not in a game
-        gui_print(60, 60, "Waiting for a game to start...");
-    }
 
-    // Restore original color in case it's used elsewhere.
-    g_color_text = original_color;
+        // Footer
+        const rgba_t original_color = g_color_text;
+        g_color_text                = GREYED_OUT_COLOR;
+        gui_print(10, GUI_HEIGHT - 32, "Waiting for a game to start...");
+        g_color_text = original_color;
+    }
 }
 
 // If needed, menu_init can be used to initialize menu-specific resources.
