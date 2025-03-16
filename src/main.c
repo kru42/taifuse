@@ -10,6 +10,10 @@
 #include "hex_browser.h"
 #include "taifuse.h"
 
+volatile bool g_gui_updating   = false;
+volatile int  g_gui_draw_frame = 0;
+volatile int  g_gui_copy_frame = 0;
+
 // Utility macro
 #define DECL_FUNC_HOOK_PATCH_CTRL(index, name)                                         \
     static int name##_patched(int port, SceCtrlData* pad_data, int count)              \
@@ -52,67 +56,78 @@ bool        ui_needs_redraw     = true;
 
 static int taifuse_thread(SceSize args, void* argp)
 {
+    // Get initial time in microseconds
+    SceInt64 lastInputTime = ksceKernelGetSystemTimeWide();
+
     while (1)
     {
-        // Check buttons
-        SceCtrlData kctrl;
-        int         ret = ksceCtrlPeekBufferPositive(0, &kctrl, 1);
-        if (ret < 0)
-            ret = ksceCtrlPeekBufferPositive(1, &kctrl, 1);
-        if (ret > 0)
+        // Wait for VBlank to sync rendering with display refresh.
+        ksceDisplayWaitVblankStart();
+
+        // Poll inputs only every 150ms (150,000 microseconds)
+        SceInt64 currentTime = ksceKernelGetSystemTimeWide();
+        if (currentTime - lastInputTime >= 150 * 1000)
         {
-            // Handle input
-            menu_handle_input(kctrl.buttons);
-            console_handle_input(kctrl.buttons);
-            hex_browser_handle_input(kctrl.buttons);
+            SceCtrlData kctrl;
+            int         ret = ksceCtrlPeekBufferPositive(0, &kctrl, 1);
+            if (ret < 0)
+                ret = ksceCtrlPeekBufferPositive(1, &kctrl, 1);
+            if (ret > 0)
+            {
+                menu_handle_input(kctrl.buttons);
+                console_handle_input(kctrl.buttons);
+                // hex_browser_handle_input(kctrl.buttons);
+            }
+            lastInputTime = currentTime;
         }
 
-        // Check if UI state or FB resolution changed
+        // Check for UI state or framebuffer resolution changes.
         bool state_changed = gui_state_changed();
         bool res_changed   = gui_fb_res_changed();
-
         if (state_changed || res_changed)
         {
             g_ui_state_changed = true;
         }
 
-        // Draw templates on state/res change
+        // Begin updating GUI. This flag might be used to prevent concurrent writes.
+        g_gui_updating = true;
+
+        // If the UI state changed, clear and redraw static parts.
         if (g_ui_state_changed)
         {
             gui_clear();
             if (menu_is_active())
             {
-                // Draw the static template parts of menu
                 menu_draw_template();
             }
             else if (console_is_active())
             {
-                // Draw the static template parts of console
                 console_draw_template();
             }
-            else if (hex_browser_is_active())
-            {
-                // Draw the static template parts of hex browser
-                hex_browser_draw_template();
-            }
+            // else if (hex_browser_is_active())
+            // {
+            //     hex_browser_draw_template();
+            // }
             g_ui_state_changed = false;
         }
 
-        // Draw dynamic content
+        // Draw dynamic (frequently changing) content continuously.
         if (menu_is_active())
         {
-            menu_draw_dynamic(); // Only draw changing parts
+            menu_draw_dynamic();
         }
         else if (console_is_active())
         {
-            console_draw_dynamic(); // Only draw changing parts
+            console_draw_dynamic();
         }
-        else if (hex_browser_is_active())
-        {
-            hex_browser_draw_dynamic(); // Only draw changing parts
-        }
+        // else if (hex_browser_is_active())
+        // {
+        //     hex_browser_draw_dynamic();
+        // }
 
-        ksceKernelDelayThread(100 * 1000);
+        // Increment frame counter and release the updating lock.
+        g_gui_draw_frame++;
+        g_gui_updating = false;
     }
     return 0;
 }
@@ -137,16 +152,20 @@ DECL_FUNC_HOOK_PATCH_CTRL(5, sceCtrlReadBufferNegative2)
 DECL_FUNC_HOOK_PATCH_CTRL(6, sceCtrlReadBufferPositive)
 DECL_FUNC_HOOK_PATCH_CTRL(7, sceCtrlReadBufferPositive2)
 
+// Modify your ksceDisplaySetFrameBufInternal_patched function
 int ksceDisplaySetFrameBufInternal_patched(int head, int index, const SceDisplayFrameBuf* pParam, int sync)
 {
     if (head == 0 || pParam == NULL)
         goto DISPLAY_HOOK_RET;
 
-    // Only copy if any UI is active
-    if (menu_is_active() || console_is_active() || hex_browser_is_active())
+    gui_set_framebuf(pParam);
+
+    // Only copy if any UI is active and not currently updating
+    if ((menu_is_active() || console_is_active() || hex_browser_is_active()) && !g_gui_updating &&
+        g_gui_draw_frame > g_gui_copy_frame)
     {
-        gui_set_framebuf(pParam);
         gui_cpy();
+        g_gui_copy_frame = g_gui_draw_frame;
     }
 
 DISPLAY_HOOK_RET:

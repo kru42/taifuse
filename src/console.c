@@ -13,7 +13,7 @@ extern rgba_t g_color_text;
 extern bool   ui_needs_redraw;
 
 // Starting position on screen for the console.
-#define CONSOLE_START_X 5
+#define CONSOLE_START_X 15
 #define CONSOLE_START_Y 15
 // Vertical spacing between console lines.
 #define CONSOLE_LINE_SPACING 26

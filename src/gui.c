@@ -149,16 +149,16 @@ void gui_printf(int x, int y, const char* format, ...)
 // Check if UI state changed
 bool gui_state_changed()
 {
-    bool current_menu_active = menu_is_active();
-    // bool current_console_active     = console_is_active();
+    bool current_menu_active    = menu_is_active();
+    bool current_console_active = console_is_active();
     // bool current_hex_browser_active = hex_browser_is_active();
 
-    bool changed = (current_menu_active != g_last_menu_active); //||
-    // (current_console_active != g_last_console_active); // ||
+    bool changed =
+        (current_menu_active != g_last_menu_active) || (current_console_active != g_last_console_active); // ||
     //(current_hex_browser_active != g_last_hex_browser_active);
 
-    g_last_menu_active = current_menu_active;
-    // g_last_console_active = current_console_active;
+    g_last_menu_active    = current_menu_active;
+    g_last_console_active = current_console_active;
     //  g_last_hex_browser_active = current_hex_browser_active;
 
     return changed;
@@ -216,6 +216,26 @@ void gui_cpy(void)
     const int corner_radius    = 16;
     const int corner_radius_sq = corner_radius * corner_radius;
 
+    // Buffer for efficient copying
+    static rgba_t* line_buffer    = NULL;
+    static int     prev_row_width = 0;
+
+    // Allocate or reallocate line buffer if needed
+    if (!line_buffer || prev_row_width < scaled_width)
+    {
+        if (line_buffer)
+        {
+            ksceKernelFreeMemBlock((SceUID)line_buffer);
+        }
+        int    size       = (scaled_width * sizeof(rgba_t) + 0xfff) & ~0xfff;
+        SceUID buffer_uid = ksceKernelAllocMemBlock("line_buffer", SCE_KERNEL_MEMBLOCK_TYPE_KERNEL_RW, size, NULL);
+        if (buffer_uid >= 0)
+        {
+            ksceKernelGetMemBlockBase(buffer_uid, (void**)&line_buffer);
+            prev_row_width = scaled_width;
+        }
+    }
+
     for (int line = 0; line < scaled_height; line++)
     {
         int src_line_idx = (int)((line + margin) / g_gui_fb_h_ratio);
@@ -238,7 +258,21 @@ void gui_cpy(void)
         int fb_offset       = fb_line * g_gui_fb.pitch + x_offset + scaled_x_offset;
         int row_width       = scaled_width - (scaled_x_offset * 2);
 
-        ksceKernelMemcpyKernelToUser((uintptr_t)&((rgba_t*)g_gui_fb.base)[fb_offset],
-                                     &g_gui_buffer[src_line_idx * GUI_WIDTH + inset_x], sizeof(rgba_t) * row_width);
+        // Use line buffer if available for more efficient copy
+        if (line_buffer)
+        {
+            // Copy from internal buffer to line buffer first
+            memcpy(line_buffer, &g_gui_buffer[src_line_idx * GUI_WIDTH + inset_x], sizeof(rgba_t) * row_width);
+
+            // Then copy from line buffer to framebuffer
+            ksceKernelMemcpyKernelToUser((uintptr_t)&((rgba_t*)g_gui_fb.base)[fb_offset], line_buffer,
+                                         sizeof(rgba_t) * row_width);
+        }
+        else
+        {
+            // Direct copy as fallback
+            ksceKernelMemcpyKernelToUser((uintptr_t)&((rgba_t*)g_gui_fb.base)[fb_offset],
+                                         &g_gui_buffer[src_line_idx * GUI_WIDTH + inset_x], sizeof(rgba_t) * row_width);
+        }
     }
 }
