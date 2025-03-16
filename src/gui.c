@@ -36,7 +36,7 @@ bool g_ui_state_changed = false;
 
 extern bool g_last_menu_active;
 extern bool g_last_console_active;
-extern bool g_last_menu_active;
+extern bool g_last_hexbrowser_active;
 
 //--------------------------------------------------------------------
 // Initialization / deinitialization
@@ -87,17 +87,17 @@ static void draw_char(char c, int x, int y)
     // Fast path for space.
     if (c == ' ')
     {
-        for (int yy = 0; yy < (int)(g_gui_font_height * g_gui_font_scale); yy++)
-        {
-            if (y + yy >= GUI_HEIGHT)
-                break;
-            for (int xx = 0; xx < (int)(g_gui_font_width * g_gui_font_scale); xx++)
-            {
-                if (x + xx >= GUI_WIDTH)
-                    break;
-                g_gui_buffer[(y + yy) * GUI_WIDTH + (x + xx)] = g_color_bg;
-            }
-        }
+        // for (int yy = 0; yy < (int)(g_gui_font_height * g_gui_font_scale); yy++)
+        // {
+        //     if (y + yy >= GUI_HEIGHT)
+        //         break;
+        //     for (int xx = 0; xx < (int)(g_gui_font_width * g_gui_font_scale); xx++)
+        //     {
+        //         if (x + xx >= GUI_WIDTH)
+        //             break;
+        //         g_gui_buffer[(y + yy) * GUI_WIDTH + (x + xx)] = g_color_bg;
+        //     }
+        // }
         return;
     }
 
@@ -149,17 +149,16 @@ void gui_printf(int x, int y, const char* format, ...)
 // Check if UI state changed
 bool gui_state_changed()
 {
-    bool current_menu_active    = menu_is_active();
-    bool current_console_active = console_is_active();
-    // bool current_hex_browser_active = hex_browser_is_active();
+    bool current_menu_active        = menu_is_active();
+    bool current_console_active     = console_is_active();
+    bool current_hex_browser_active = hex_browser_is_active();
 
-    bool changed =
-        (current_menu_active != g_last_menu_active) || (current_console_active != g_last_console_active); // ||
-    //(current_hex_browser_active != g_last_hex_browser_active);
+    bool changed = (current_menu_active != g_last_menu_active) || (current_console_active != g_last_console_active) ||
+                   (current_hex_browser_active != g_last_hexbrowser_active);
 
-    g_last_menu_active    = current_menu_active;
-    g_last_console_active = current_console_active;
-    //  g_last_hex_browser_active = current_hex_browser_active;
+    g_last_menu_active       = current_menu_active;
+    g_last_console_active    = current_console_active;
+    g_last_hexbrowser_active = current_hex_browser_active;
 
     return changed;
 }

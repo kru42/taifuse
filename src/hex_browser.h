@@ -17,6 +17,7 @@ bool hex_browser_is_active(void);
 void hex_browser_handle_input(SceCtrlButtons buttons);
 
 // Draw the hex browser UI
-void hex_browser_draw(void);
+void hex_browser_draw_template(void);
+void hex_browser_draw_dynamic(void);
 
 #endif /* HEX_BROWSER_H */

@@ -64,9 +64,9 @@ static int taifuse_thread(SceSize args, void* argp)
         // Wait for VBlank to sync rendering with display refresh.
         ksceDisplayWaitVblankStart();
 
-        // Poll inputs only every 150ms (150,000 microseconds)
+        // Poll inputs only every 100ms
         SceInt64 currentTime = ksceKernelGetSystemTimeWide();
-        if (currentTime - lastInputTime >= 150 * 1000)
+        if (currentTime - lastInputTime >= 100 * 1000)
         {
             SceCtrlData kctrl;
             int         ret = ksceCtrlPeekBufferPositive(0, &kctrl, 1);
@@ -76,7 +76,7 @@ static int taifuse_thread(SceSize args, void* argp)
             {
                 menu_handle_input(kctrl.buttons);
                 console_handle_input(kctrl.buttons);
-                // hex_browser_handle_input(kctrl.buttons);
+                hex_browser_handle_input(kctrl.buttons);
             }
             lastInputTime = currentTime;
         }
@@ -104,10 +104,10 @@ static int taifuse_thread(SceSize args, void* argp)
             {
                 console_draw_template();
             }
-            // else if (hex_browser_is_active())
-            // {
-            //     hex_browser_draw_template();
-            // }
+            else if (hex_browser_is_active())
+            {
+                hex_browser_draw_template();
+            }
             g_ui_state_changed = false;
         }
 
@@ -120,10 +120,10 @@ static int taifuse_thread(SceSize args, void* argp)
         {
             console_draw_dynamic();
         }
-        // else if (hex_browser_is_active())
-        // {
-        //     hex_browser_draw_dynamic();
-        // }
+        else if (hex_browser_is_active())
+        {
+            hex_browser_draw_dynamic();
+        }
 
         // Increment frame counter and release the updating lock.
         g_gui_draw_frame++;
